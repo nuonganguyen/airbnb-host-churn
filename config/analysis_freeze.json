@@ -103,5 +103,24 @@
     "captured value and share",
     "net benefit and break-even cost per contact",
     "listing AP / AUC / Brier"
-  ]
+  ],
+  "file_sha256": {
+    "config/quality_policy.json": "fedb43fccd1f9dffd3818318cfe5088be0eb2ec8863e90065d0daa12813064f6",
+    "sql/01_extract.sql": "39f432c5a6251f81bf5dfc1ac4d9517a00de2dfe99288b2e32e83f00665ad32a",
+    "sql/02_clean.sql": "e45c061c517d90814d9bc37889200b9e61d4f2897d2778e206cb323fe8c6108e",
+    "sql/03_label.sql": "bacd907d4e71e1e0490e210a1a16d9cf16867f7a0b651bf53bc630f5b708b7a3",
+    "sql/04_features.sql": "3b35fa4582251d9dfa4e86c4c65fe41a6688c61f1f2b5fba723300d48ebf3982",
+    "src/backtest.py": "172c624b0bea6c93af2be136defeccad5afc5fd31e2cc2e3d9f835194cf1b2eb",
+    "src/business.py": "85e43b6bd2f6e4e2c3edbf9b4be5b4ce7e6c789feb325b6544d5737daee2eee2",
+    "src/db.py": "960e4cf658be0440e5c8e8d91fbc68951fbace79ed69582b453dc1df33ab6c1c",
+    "src/features.py": "c7f3b9481bb4b18286ecf06e350da65ef06c2ec74dffb0d4b2383d6d811478cd",
+    "src/fingerprint.py": "4b3a107d914018e59275f2cf409742b4f88850979aac413a5803ccefcf4cc328",
+    "src/label.py": "bc6380879cad735e09dbbecb8b8db9ec14b42c14228565504e67a945ac28a58f",
+    "src/model.py": "c7515756dfddc5e2baee1f1607ecf6ab8f0822aed9f741dae63f4a75e66bc75b",
+    "src/quality.py": "80b34cb23c123b500dc93a26945b66ddf92df442a9bba2f1b68fc2b5872034f1",
+    "src/rebuild_from_raw.py": "ec403381cbddf2e9fe27d0024b5463619c024eb27ddeec6034dd6fbe6e9b9c18",
+    "src/run_sql.py": "ab5fe784bb10076d6c60293175fe138a1fe3e11455f2bd865578463d2b813363",
+    "src/validate.py": "ef9419018c277ebdb3faa7001f0636306e13fbc29c01a3c71214c694fe8f941c"
+  },
+  "git_commit_at_freeze": "41ca7f78197717e6e77152dbb3ee73c3413a837f"
 }
