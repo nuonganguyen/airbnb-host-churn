@@ -1,0 +1,11 @@
+# source data (symlink to the external drive) and anything derived from it
+data
+data_local/
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store

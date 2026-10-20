@@ -1,0 +1,12 @@
+duckdb>=1.1
+pandas
+pyarrow
+scikit-learn
+lightgbm
+shap
+lifelines
+matplotlib
+streamlit
+jupyterlab
+tabulate
+pytest
