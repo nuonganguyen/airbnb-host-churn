@@ -1,6 +1,6 @@
 # Re-keying Detection
 
-Built 2026-10-20 by `src/quality.py`. For each pair of consecutive snapshots: of the listings that vanish, the share reappearing under a new id with the same host, neighbourhood, room type and capacity and at least the same review count. Known once the later snapshot is available.
+Built 2026-10-20 by `src/quality.py`. For each pair of consecutive snapshots: of the listings that vanish, the share with at least one candidate replacement: a new id sharing host, neighbourhood, room type and capacity with at least the vanished review count. Candidates are not one-to-one, so this screens for a break; it is not a crosswalk. Known once the later snapshot is available.
 
 ## By year of the later snapshot
 

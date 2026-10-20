@@ -206,6 +206,10 @@ def main(holdout=False):
     if holdout:
         if not (OUT / "dev_metrics.csv").exists():
             sys.exit("run the development backtest first; the holdout is evaluated once, at the end")
+        import freeze
+        freeze.verify()                  # refuses to run if any frozen file changed
+        if (OUT / "holdout_metrics.csv").exists():
+            sys.exit("the holdout has already been run; it is evaluated once")
         span = HOLDOUT
     else:
         span = (FIRST_DEPLOYMENT, HOLDOUT[0])

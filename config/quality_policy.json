@@ -8,25 +8,63 @@
       "status": "suspected",
       "cause": "unresolved",
       "markets": {
-        "11": ["2023-01-16", "2023-06-10"],
-        "19": ["2022-12-30", "2023-06-30"],
-        "24": ["2023-01-20", "2023-06-22"],
-        "25": ["2023-01-09", "2023-06-06"],
-        "33": ["2023-01-23", "2023-06-24"],
-        "38": ["2023-01-23", "2023-06-24"]
+        "11": [
+          "2023-01-16",
+          "2023-06-10"
+        ],
+        "19": [
+          "2022-12-30",
+          "2023-06-30"
+        ],
+        "24": [
+          "2023-01-20",
+          "2023-06-22"
+        ],
+        "25": [
+          "2023-01-09",
+          "2023-06-06"
+        ],
+        "33": [
+          "2023-01-23",
+          "2023-06-24"
+        ],
+        "38": [
+          "2023-01-23",
+          "2023-06-24"
+        ]
       },
       "evidence": [
-        "Re-keying detector (src/quality.py): 35-49% of listings that vanish between the last pre-break and first post-break snapshot reappear under a new id with the same host, neighbourhood, room type, capacity and at least the same review count; all 473 earlier snapshot pairs <= 8.4%, all later pairs <= 13.2%.",
+        "Candidate-replacement detector (src/quality.py): 35-49% of ids that vanish between the last pre-break and first post-break snapshot have at least one new id sharing host, neighbourhood, room type and capacity with >= the vanished review count (all 473 earlier pairs <= 8.4%, all later pairs <= 13.2%). Matches are not one-to-one and do not establish that the accommodations are the same.",
         "Matched-duration turnover: 35-45% of listings missing ~5-6 months later, the 93rd-97th percentile of 487 matched intervals; comparable to the 2020 COVID intervals, so not unusual on its own.",
         "Jan 2023 cohort absent_confirmed 37-50% in every market vs 13-22% in neighbouring cohorts.",
         "Raw/extracted id reconciliation is clean apart from 166 scientific-notation ids (excluded at load); the `source` column (from Aug 2022) does not explain the absences."
       ],
       "evidence_available_at": {
-        "rekey_detector": {"11": "2023-06-11", "19": "2023-06-30", "24": "2023-06-23", "25": "2023-06-06", "33": "2023-06-25", "38": "2023-06-30"},
-        "finalized_outcomes": {"11": "2023-11-27", "24": "2023-12-01", "25": "2023-11-20", "33": "2023-12-04", "38": "2023-12-04"}
+        "rekey_detector": {
+          "11": "2023-06-11",
+          "19": "2023-06-30",
+          "24": "2023-06-23",
+          "25": "2023-06-06",
+          "33": "2023-06-25",
+          "38": "2023-06-30"
+        },
+        "finalized_outcomes": {
+          "11": "2023-11-27",
+          "24": "2023-12-01",
+          "25": "2023-11-20",
+          "33": "2023-12-04",
+          "38": "2023-12-04"
+        }
       },
       "detection_procedure": "Flag a snapshot pair when rekey_share > 0.25 (3x the maximum over all pre-2023 pairs). Uses only the two snapshots, so a pair is detectable once the later snapshot is available. The threshold was set retrospectively, during this investigation.",
-      "detectable_at": {"11": "2023-06-11", "19": "2023-06-30", "24": "2023-06-23", "25": "2023-06-06", "33": "2023-06-25", "38": "2023-06-30"},
+      "detectable_at": {
+        "11": "2023-06-11",
+        "19": "2023-06-30",
+        "24": "2023-06-23",
+        "25": "2023-06-06",
+        "33": "2023-06-25",
+        "38": "2023-06-30"
+      },
       "identified_at": "2026-10-20"
     }
   ],

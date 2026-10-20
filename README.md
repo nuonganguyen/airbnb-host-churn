@@ -73,3 +73,14 @@ python src/backtest.py --holdout       # shared holdout block 2023-Q4..2024-Q3, 
 ```
 
 Known source discontinuities and their proposed handling: [docs/source_breaks.md](docs/source_breaks.md).
+
+## Business evaluation and holdout
+
+```bash
+python src/business.py                 # targeting, value exposure, intervention scenarios -> reports/business_development.md
+python src/freeze.py                   # freeze settings + file hashes (config/analysis_freeze.json)
+python src/backtest.py --holdout       # refuses to run if any frozen file changed, or if already run
+python src/business.py --holdout       # -> reports/business_holdout.md
+```
+
+Definitions, value proxy and the experiment proposal: [docs/business_spec.md](docs/business_spec.md).

@@ -31,9 +31,11 @@ def load_policy(path=POLICY):
 
 def detect_rekeying(con):
     """For each pair of consecutive snapshots in a city: of the listings that vanish, the
-    share that reappear under a new id with the same host, neighbourhood, room type and
-    capacity, carrying at least their previous review count. Uses only the two
-    snapshots, so it is known once the later one is available."""
+    share with at least one candidate replacement, a new id sharing host, neighbourhood,
+    room type and capacity with at least the vanished listing's review count. Candidates
+    are not one-to-one (several vanished ids may share one), so this is a screening
+    signal, not a crosswalk. Uses only the two snapshots, so it is known once the later
+    one is available."""
     return con.execute("""
         WITH snaps AS (
             SELECT city_id, snap, LAG(snap) OVER (PARTITION BY city_id ORDER BY snap) AS prev,
@@ -132,8 +134,9 @@ def main():
     from label import md
     lines = ["# Re-keying Detection", "",
              f"Built {date.today():%Y-%m-%d} by `src/quality.py`. For each pair of consecutive snapshots: of the "
-             "listings that vanish, the share reappearing under a new id with the same host, neighbourhood, room "
-             "type and capacity and at least the same review count. Known once the later snapshot is available.", "",
+             "listings that vanish, the share with at least one candidate replacement: a new id sharing host, "
+             "neighbourhood, room type and capacity with at least the vanished review count. Candidates are not "
+             "one-to-one, so this screens for a break; it is not a crosswalk. Known once the later snapshot is available.", "",
              "## By year of the later snapshot", "", md(by_year), "",
              "## Highest pairs", "",
              md(top[["city", "prev", "snap", "available_at", "n_gone", "n_rekeyed", "rekey_share"]].round(3)), ""]
