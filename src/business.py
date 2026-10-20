@@ -116,9 +116,10 @@ def by_portfolio(hosts, k=500, score="risk_max"):
     return out.drop(columns="captured_value").reset_index()
 
 
-def paired_comparison(results, a, b, k):
+def paired_comparison(results, a, b, k, intervals=True):
     """Quarter-by-quarter difference between two strategies, with a moving-block bootstrap
-    over consecutive quarters (quarters overlap through the ~9-month follow-up)."""
+    over consecutive quarters (quarters overlap through the ~9-month follow-up). With
+    intervals=False (the four-quarter holdout), each quarter's difference is listed instead."""
     from backtest import block_bootstrap_ci
     rows = []
     for (variant, scen), g in results[results.k == k].groupby(["variant", "value_scenario"]):
@@ -126,12 +127,16 @@ def paired_comparison(results, a, b, k):
         for metric in ["precision", "captured"]:
             d = w[metric][a] - w[metric][b]
             rel = (w[metric][a] / w[metric][b] - 1)
-            mean, lo, hi = block_bootstrap_ci(d)
-            rows.append({"variant": variant, "value_scenario": scen, "metric": metric,
-                         "mean difference": round(mean / (1e6 if metric == "captured" else 1), 3),
-                         "block bootstrap 95%": f"[{lo / (1e6 if metric == 'captured' else 1):.3f}, "
-                                                f"{hi / (1e6 if metric == 'captured' else 1):.3f}]",
-                         "mean relative": f"{rel.mean():+.1%}", "quarters better": f"{(d > 0).sum()}/{len(d)}"})
+            unit = 1e6 if metric == "captured" else 1
+            row = {"variant": variant, "value_scenario": scen, "metric": metric,
+                   "mean difference": round(float(d.mean()) / unit, 3),
+                   "mean relative": f"{rel.mean():+.1%}", "quarters better": f"{(d > 0).sum()}/{len(d)}"}
+            if intervals:
+                _, lo, hi = block_bootstrap_ci(d)
+                row["block bootstrap 95%"] = f"[{lo / unit:.3f}, {hi / unit:.3f}]"
+            else:
+                row.update({q: round(float(x) / unit, 3) for q, x in d.items()})
+            rows.append(row)
     return pd.DataFrame(rows)
 
 
@@ -228,8 +233,9 @@ def main(holdout=False):
                             "quarters at 500 treated + 500 control": int(np.ceil(hosts_per_arm(p_ctrl, r) / k_main))}
                            for r in (0.05, 0.10, 0.20)])
     imputed = sections[0][2].price_imputed.mean()
-    vs_value = paired_comparison(res, "risk × value (Σ p·V)", "value only (Σ V)", k_main)
-    vs_rule = paired_comparison(res[res.value_scenario == "central"], "risk (max p)", "best rule", k_main)
+    vs_value = paired_comparison(res, "risk × value (Σ p·V)", "value only (Σ V)", k_main, intervals=not holdout)
+    vs_rule = paired_comparison(res[res.value_scenario == "central"], "risk (max p)", "best rule", k_main,
+                                intervals=not holdout)
 
     title = "holdout" if holdout else "development"
     lines = [

@@ -23,16 +23,16 @@ Best simple rule (highest mean AP, primary development folds): `rule:low_presenc
 
 Fold metrics are serially dependent (outcomes follow up for ~9 months, so neighbouring folds overlap). Intervals use a moving-block bootstrap over consecutive folds (blocks of 4 quarters) and a Newey–West HAC standard error (lag 3). Both are approximate with this few folds.
 
-| variant   | comparison                   | metric     |   mean_diff | block bootstrap (b=4)   | Newey–West (lag 3)   | folds_better   |
-|:----------|:-----------------------------|:-----------|------------:|:------------------------|:---------------------|:---------------|
-| retain    | lr − rule:low_presence_365   | ap         |       0.033 | [0.007, 0.050]          | [0.012, 0.054]       | 19/23          |
-| retain    | lr − rule:low_presence_365   | host_p@500 |       0.094 | [0.033, 0.135]          | [0.043, 0.146]       | 18/23          |
-| retain    | lgbm − rule:low_presence_365 | ap         |       0.062 | [0.035, 0.084]          | [0.038, 0.086]       | 19/23          |
-| retain    | lgbm − rule:low_presence_365 | host_p@500 |       0.179 | [0.139, 0.208]          | [0.144, 0.214]       | 23/23          |
-| exclude   | lr − rule:low_presence_365   | ap         |       0.043 | [0.008, 0.062]          | [0.014, 0.072]       | 19/22          |
-| exclude   | lr − rule:low_presence_365   | host_p@500 |       0.109 | [0.031, 0.155]          | [0.040, 0.177]       | 18/22          |
-| exclude   | lgbm − rule:low_presence_365 | ap         |       0.07  | [0.037, 0.095]          | [0.042, 0.099]       | 19/22          |
-| exclude   | lgbm − rule:low_presence_365 | host_p@500 |       0.189 | [0.137, 0.223]          | [0.142, 0.235]       | 22/22          |
+| variant   | comparison                   | metric     |   mean_diff | folds_better   | block bootstrap (b=4)   | Newey–West (lag 3)   |
+|:----------|:-----------------------------|:-----------|------------:|:---------------|:------------------------|:---------------------|
+| retain    | lr − rule:low_presence_365   | ap         |       0.033 | 19/23          | [0.007, 0.050]          | [0.012, 0.054]       |
+| retain    | lr − rule:low_presence_365   | host_p@500 |       0.094 | 18/23          | [0.033, 0.135]          | [0.043, 0.146]       |
+| retain    | lgbm − rule:low_presence_365 | ap         |       0.062 | 19/23          | [0.035, 0.084]          | [0.038, 0.086]       |
+| retain    | lgbm − rule:low_presence_365 | host_p@500 |       0.179 | 23/23          | [0.139, 0.208]          | [0.144, 0.214]       |
+| exclude   | lr − rule:low_presence_365   | ap         |       0.043 | 19/22          | [0.008, 0.062]          | [0.014, 0.072]       |
+| exclude   | lr − rule:low_presence_365   | host_p@500 |       0.109 | 18/22          | [0.031, 0.155]          | [0.040, 0.177]       |
+| exclude   | lgbm − rule:low_presence_365 | ap         |       0.07  | 19/22          | [0.037, 0.095]          | [0.042, 0.099]       |
+| exclude   | lgbm − rule:low_presence_365 | host_p@500 |       0.189 | 22/22          | [0.137, 0.223]          | [0.142, 0.235]       |
 
 ## Folds where the variants differ (LightGBM host P@500)
 

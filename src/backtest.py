@@ -140,12 +140,16 @@ def report(metrics, meta, gains, holdout, policy):
         for m in MODELS:
             for col in ["ap", "host_p@500"]:
                 d = (wide[col][m] - wide[col][best_rule]).sort_index()
-                mean, blo, bhi = block_bootstrap_ci(d)
-                _, hlo, hhi = newey_west_ci(d)
-                lifts.append({"variant": v, "comparison": f"{m} − {best_rule}", "metric": col,
-                              "mean_diff": round(mean, 3), f"block bootstrap (b={BLOCK})": f"[{blo:.3f}, {bhi:.3f}]",
-                              f"Newey–West (lag {HAC_LAGS})": f"[{hlo:.3f}, {hhi:.3f}]",
-                              "folds_better": f"{(d > 0).sum()}/{len(d)}"})
+                row = {"variant": v, "comparison": f"{m} − {best_rule}", "metric": col,
+                       "mean_diff": round(float(d.mean()), 3), "folds_better": f"{(d > 0).sum()}/{len(d)}"}
+                if holdout:              # four quarters: report each one, no intervals
+                    row.update({q: round(float(x), 3) for q, x in d.items()})
+                else:
+                    _, blo, bhi = block_bootstrap_ci(d)
+                    _, hlo, hhi = newey_west_ci(d)
+                    row.update({f"block bootstrap (b={BLOCK})": f"[{blo:.3f}, {bhi:.3f}]",
+                                f"Newey–West (lag {HAC_LAGS})": f"[{hlo:.3f}, {hhi:.3f}]"})
+                lifts.append(row)
     prim = metrics[metrics.variant == "retain"]
     pm = meta[meta.variant == "retain"]
     era = lambda q: "2017–19" if q < "2020" else ("2020–21" if q < "2022" else "2022–23")
@@ -184,9 +188,10 @@ def report(metrics, meta, gains, holdout, policy):
         f"Best simple rule (highest mean AP, primary development folds): `{best_rule}`.", "",
         "## Mean over folds", "", md(summary), "",
         "## Lift over the best rule", "",
-        "Fold metrics are serially dependent (outcomes follow up for ~9 months, so neighbouring folds overlap). "
-        f"Intervals use a moving-block bootstrap over consecutive folds (blocks of {BLOCK} quarters) and a "
-        f"Newey–West HAC standard error (lag {HAC_LAGS}). Both are approximate with this few folds.", "",
+        ("Four holdout quarters: each quarter's difference is shown, and no intervals are computed." if holdout else
+         "Fold metrics are serially dependent (outcomes follow up for ~9 months, so neighbouring folds overlap). "
+         f"Intervals use a moving-block bootstrap over consecutive folds (blocks of {BLOCK} quarters) and a "
+         f"Newey–West HAC standard error (lag {HAC_LAGS}). Both are approximate with this few folds."), "",
         md(pd.DataFrame(lifts)), "",
         "## Folds where the variants differ (LightGBM host P@500)", "",
         md(diff) if len(diff) else "None.", "",

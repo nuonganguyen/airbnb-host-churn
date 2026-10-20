@@ -93,10 +93,10 @@ Host precision@500 per quarter (share of contacted hosts with ≥ 1 eligible lis
 
 ### Lift over the rule, host precision@500 (risk ranking vs `rule:low_presence_365`)
 
-| variant   |   mean difference | block bootstrap 95%   | mean relative   | quarters better   |
-|:----------|------------------:|:----------------------|:----------------|:------------------|
-| exclude   |             0.189 | [0.137, 0.223]        | +56.2%          | 22/22             |
-| retain    |             0.179 | [0.139, 0.208]        | +49.5%          | 23/23             |
+| variant   |   mean difference | mean relative   | quarters better   | block bootstrap 95%   |
+|:----------|------------------:|:----------------|:------------------|:----------------------|
+| exclude   |             0.189 | +56.2%          | 22/22             | [0.137, 0.223]        |
+| retain    |             0.179 | +49.5%          | 23/23             | [0.139, 0.208]        |
 
 ### By host portfolio size (eligible listings in the quarter), primary variant
 
@@ -154,20 +154,20 @@ Estimated value associated with correctly flagged disappearances: the summed V_i
 
 Quarter-by-quarter difference, risk × value minus value only, at K = 500 (captured in $M per quarter). Value per host is heavy-tailed, so both rankings favour large portfolios; the comparison shows how much the risk score adds on top.
 
-| variant   | value_scenario   | metric    |   mean difference | block bootstrap 95%   | mean relative   | quarters better   |
-|:----------|:-----------------|:----------|------------------:|:----------------------|:----------------|:------------------|
-| exclude   | central          | precision |             0.082 | [0.071, 0.091]        | +19.6%          | 22/22             |
-| exclude   | central          | captured  |             2.447 | [1.793, 2.966]        | +8.4%           | 22/22             |
-| exclude   | high_value       | precision |             0.087 | [0.074, 0.100]        | +20.9%          | 22/22             |
-| exclude   | high_value       | captured  |             3.822 | [2.801, 4.813]        | +9.7%           | 22/22             |
-| exclude   | low_value        | precision |             0.083 | [0.072, 0.091]        | +19.9%          | 22/22             |
-| exclude   | low_value        | captured  |             1.929 | [1.486, 2.285]        | +8.7%           | 22/22             |
-| retain    | central          | precision |             0.084 | [0.072, 0.093]        | +19.7%          | 23/23             |
-| retain    | central          | captured  |             2.512 | [1.834, 3.031]        | +8.4%           | 23/23             |
-| retain    | high_value       | precision |             0.09  | [0.076, 0.102]        | +21.1%          | 23/23             |
-| retain    | high_value       | captured  |             3.874 | [2.875, 4.802]        | +9.6%           | 23/23             |
-| retain    | low_value        | precision |             0.085 | [0.073, 0.092]        | +20.0%          | 23/23             |
-| retain    | low_value        | captured  |             1.975 | [1.513, 2.307]        | +8.6%           | 23/23             |
+| variant   | value_scenario   | metric    |   mean difference | mean relative   | quarters better   | block bootstrap 95%   |
+|:----------|:-----------------|:----------|------------------:|:----------------|:------------------|:----------------------|
+| exclude   | central          | precision |             0.082 | +19.6%          | 22/22             | [0.071, 0.091]        |
+| exclude   | central          | captured  |             2.447 | +8.4%           | 22/22             | [1.793, 2.966]        |
+| exclude   | high_value       | precision |             0.087 | +20.9%          | 22/22             | [0.074, 0.100]        |
+| exclude   | high_value       | captured  |             3.822 | +9.7%           | 22/22             | [2.801, 4.813]        |
+| exclude   | low_value        | precision |             0.083 | +19.9%          | 22/22             | [0.072, 0.091]        |
+| exclude   | low_value        | captured  |             1.929 | +8.7%           | 22/22             | [1.486, 2.285]        |
+| retain    | central          | precision |             0.084 | +19.7%          | 23/23             | [0.072, 0.093]        |
+| retain    | central          | captured  |             2.512 | +8.4%           | 23/23             | [1.834, 3.031]        |
+| retain    | high_value       | precision |             0.09  | +21.1%          | 23/23             | [0.076, 0.102]        |
+| retain    | high_value       | captured  |             3.874 | +9.6%           | 23/23             | [2.875, 4.802]        |
+| retain    | low_value        | precision |             0.085 | +20.0%          | 23/23             | [0.073, 0.092]        |
+| retain    | low_value        | captured  |             1.975 | +8.6%           | 23/23             | [1.513, 2.307]        |
 
 ## 3. Intervention scenarios (central value scenario)
 
