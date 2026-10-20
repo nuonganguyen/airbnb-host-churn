@@ -1,6 +1,6 @@
 # Label Specification: Listing Absence at Follow-up Checkpoints
 
-Status: **v3, 2026-10-20**: v2 (approved) plus fixes for label finality and anomaly resolution. Implemented in `sql/03_label.sql`; acceptance gate is
+Status: **v4, 2026-10-20**: v3 plus collection dates. Times that matter ("known at", finality, as-of) use when a snapshot was actually collected, not its file date. Known source breaks are handled by the quality-policy layer (`docs/source_breaks.md`), not in this spec. Implemented in `sql/03_label.sql`; acceptance gate is
 `tests/test_label.py`, not the resulting rates.
 Data: `data_local/listings_6city_clean.parquet` (6 markets, 563 snapshots, 2015–2026).
 
@@ -47,9 +47,18 @@ One row per city and snapshot. Two versions are kept apart:
      - < 50% → `suspected_contraction`: usable. This is a classification under the rule, not proof the market really shrank.
      - No resolver yet, with < 200 days elapsed → `anomaly_pending`: unusable for now, so anything it could affect stays provisional.
      - No resolver within 200 days → `anomaly_unresolved`: permanently unusable.
-4. **Status known at:** the snapshot date for `ok` and `insufficient_history`; the resolver date for `partial_scrape`
-   and `suspected_contraction`, which is also recorded for rejected snapshots; snapshot + 200 days for `anomaly_unresolved`;
-   unknown for `anomaly_pending`.
+4. **Status known at:** the snapshot's `available_at` for `ok` and `insufficient_history`; the resolver's
+   `available_at` for `partial_scrape` and `suspected_contraction`, which is also recorded for rejected snapshots;
+   snapshot + 200 days for `anomaly_unresolved`; unknown for `anomaly_pending`.
+
+**Collection dates.** `snap` is a snapshot's file date and stays its key. Its rows are collected up to several days later
+(`last_scraped`: median lag 0 days, p99 5 days). `available_at` = the latest `last_scraped` in the snapshot, and the
+prediction date's `decision_date` = the `available_at` of the snapshot at *t*. 28 rows in 4 files carry scrape dates
+22–59 days after their file date, after the next snapshot existed; those dates are treated as unknown.
+`label.build` rejects inputs with a larger lag than `max_scrape_lag_days`, or with rows collected after `as_of`.
+
+**Rows excluded at load:** 166 rows whose raw id was written in scientific notation (Feb 2022 – Jan 2023). Their ids
+are rounded, so the listing can't be followed across snapshots.
 
 Edges: the trailing window uses the up to 3 preceding snapshots, including flagged ones. A real contraction keeps
 later snapshots flagged until the trailing median catches up (2 more snapshots), so a contraction is resolved by
@@ -79,7 +88,7 @@ their status is unknown at decision time.
 ### Finality
 A later snapshot can replace a provisional pick: one that arrives inside the window and is nearer the target, or a
 flagged one that resolves as usable. So a checkpoint is **final** only once:
-1. its window has closed (target + 45 days), and
+1. every snapshot dated in its window can have arrived (target + 45 days + `max_scrape_lag_days`), and
 2. every unusable snapshot in the window that would outrank the pick, if it were usable, has a known status.
 
 `cN_final_at` is the later of those dates and the pick's own status-known date. C3 is final no earlier than C2,
@@ -175,6 +184,7 @@ Recomputed under this spec in `reports/label_summary.md`.
 | Anomaly flag | < 75% of the trailing 3-snapshot median |
 | Partial-scrape resolution | ≥ 50% of the reference's missing listings return at the first reliable later snapshot |
 | Resolution wait limit | 200 days, then `anomaly_unresolved` |
+| Maximum scrape lag | 21 days (`max_scrape_lag_days`); enforced on input |
 | Minimum history | 3 earlier snapshots |
 | Active review window | 365 days |
 | Recently first observed | within 180 days, with ≥ 180 days of prior city coverage |

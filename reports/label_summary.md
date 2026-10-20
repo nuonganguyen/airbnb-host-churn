@@ -17,22 +17,22 @@ Built 2026-10-20 by `src/label.py` from `listings_6city_clean.parquet` per `docs
 
 | city        | snap       |   n_listings |   trailing_ratio | reference_snap   | resolver_snap   |   n_missing |   return_rate | status                | status_known_at   |
 |:------------|:-----------|-------------:|-----------------:|:-----------------|:----------------|------------:|--------------:|:----------------------|:------------------|
-| Austin      | 2022-11-06 |        13591 |             0.75 | 2022-10-13       | 2022-12-15      |         758 |         0.088 | suspected_contraction | 2022-12-15        |
+| Austin      | 2022-11-06 |        13587 |             0.75 | 2022-10-13       | 2022-12-15      |         757 |         0.089 | suspected_contraction | 2022-12-29        |
 | Austin      | 2025-09-16 |        10533 |             0.68 | 2025-06-13       | nan             |        5957 |       nan     | anomaly_unresolved    | 2026-04-04        |
-| Austin      | 2025-12-22 |        11251 |             0.74 | 2025-06-13       | 2026-06-22      |        6033 |         0.06  | suspected_contraction | 2026-06-22        |
-| Austin      | 2026-03-25 |         8170 |             0.73 | 2025-06-13       | 2026-06-22      |        9002 |         0.258 | suspected_contraction | 2026-06-22        |
-| Denver      | 2020-10-29 |         3153 |             0.74 | 2020-06-28       | 2020-11-30      |        1905 |         0.068 | suspected_contraction | 2020-11-30        |
-| Denver      | 2026-03-31 |         2159 |             0.44 | 2025-12-30       | 2026-06-30      |        2380 |         0.787 | partial_scrape        | 2026-06-30        |
-| Nashville   | 2025-12-27 |         6594 |             0.69 | 2025-09-23       | 2026-06-26      |        3585 |         0.664 | partial_scrape        | 2026-06-26        |
-| Nashville   | 2026-03-28 |         6030 |             0.64 | 2025-09-23       | 2026-06-26      |        4526 |         0.636 | partial_scrape        | 2026-06-26        |
+| Austin      | 2025-12-22 |        11251 |             0.74 | 2025-06-13       | 2026-06-22      |        6033 |         0.06  | suspected_contraction | 2026-07-02        |
+| Austin      | 2026-03-25 |         8170 |             0.73 | 2025-06-13       | 2026-06-22      |        9002 |         0.258 | suspected_contraction | 2026-07-02        |
+| Denver      | 2020-10-29 |         3153 |             0.74 | 2020-06-28       | 2020-11-30      |        1905 |         0.068 | suspected_contraction | 2020-12-04        |
+| Denver      | 2026-03-31 |         2159 |             0.44 | 2025-12-30       | 2026-06-30      |        2380 |         0.787 | partial_scrape        | 2026-07-02        |
+| Nashville   | 2025-12-27 |         6594 |             0.69 | 2025-09-23       | 2026-06-26      |        3585 |         0.664 | partial_scrape        | 2026-07-03        |
+| Nashville   | 2026-03-28 |         6030 |             0.64 | 2025-09-23       | 2026-06-26      |        4526 |         0.636 | partial_scrape        | 2026-07-03        |
 | New Orleans | 2017-07-03 |         3665 |             0.66 | 2017-06-02       | 2017-09-02      |        1846 |         0.063 | suspected_contraction | 2017-09-02        |
 | New Orleans | 2017-08-02 |         3947 |             0.74 | 2017-06-02       | 2017-09-02      |        1877 |         0.011 | suspected_contraction | 2017-09-02        |
-| San Diego   | 2017-07-11 |         3134 |             0.38 | 2017-06-08       | 2017-08-11      |        5681 |         0.857 | partial_scrape        | 2017-08-11        |
-| San Diego   | 2020-10-25 |         8688 |             0.68 | 2020-07-27       | 2020-12-23      |        4885 |         0.072 | suspected_contraction | 2020-12-23        |
-| San Diego   | 2020-11-12 |         8852 |             0.71 | 2020-07-27       | 2020-12-23      |        4834 |         0.039 | suspected_contraction | 2020-12-23        |
-| Seattle     | 2020-10-25 |         4335 |             0.62 | 2020-06-17       | 2020-12-23      |        3194 |         0.049 | suspected_contraction | 2020-12-23        |
-| Seattle     | 2020-11-12 |         4428 |             0.67 | 2020-06-17       | 2020-12-23      |        3153 |         0.02  | suspected_contraction | 2020-12-23        |
-| Seattle     | 2026-03-29 |         4550 |             0.66 | 2025-12-28       | 2026-06-15      |        2555 |         0.735 | partial_scrape        | 2026-06-15        |
+| San Diego   | 2017-07-11 |         3134 |             0.38 | 2017-06-08       | 2017-08-11      |        5681 |         0.857 | partial_scrape        | 2017-08-12        |
+| San Diego   | 2020-10-25 |         8688 |             0.68 | 2020-07-27       | 2020-12-23      |        4885 |         0.072 | suspected_contraction | 2020-12-30        |
+| San Diego   | 2020-11-12 |         8852 |             0.71 | 2020-07-27       | 2020-12-23      |        4834 |         0.039 | suspected_contraction | 2020-12-30        |
+| Seattle     | 2020-10-25 |         4335 |             0.62 | 2020-06-17       | 2020-12-23      |        3194 |         0.049 | suspected_contraction | 2020-12-30        |
+| Seattle     | 2020-11-12 |         4428 |             0.67 | 2020-06-17       | 2020-12-23      |        3153 |         0.02  | suspected_contraction | 2020-12-30        |
+| Seattle     | 2026-03-29 |         4550 |             0.66 | 2025-12-28       | 2026-06-15      |        2555 |         0.735 | partial_scrape        | 2026-07-06        |
 
 ## Follow-up coverage by city and era
 
@@ -72,8 +72,8 @@ Built 2026-10-20 by `src/label.py` from `listings_6city_clean.parquet` per `docs
 
 | era     |   listings_at_t |   active_review |   via_recent_first_obs |   excl_newness_unknown |   excl_inactive |   excl_low_quality |   eligible_main |
 |:--------|----------------:|----------------:|-----------------------:|-----------------------:|----------------:|-------------------:|----------------:|
-| 2015-22 |         1168808 |          847611 |                 101413 |                   5738 |          214046 |               4871 |          944153 |
-| 2023+   |          696523 |          505093 |                  57950 |                      0 |          133480 |               1983 |          561060 |
+| 2015-22 |         1168767 |          847586 |                 101397 |                   5738 |          214046 |               4871 |          944112 |
+| 2023+   |          696507 |          505080 |                  57947 |                      0 |          133480 |               1983 |          561044 |
 
 ## Outcomes
 
@@ -82,9 +82,9 @@ Built 2026-10-20 by `src/label.py` from `listings_6city_clean.parquet` per `docs
 | era     | label_status   | population   |   listings |   absent_confirmed |   observed |   insufficient_followup |   usable |   absent_confirmed_rate |
 |:--------|:---------------|:-------------|-----------:|-------------------:|-----------:|------------------------:|---------:|------------------------:|
 | 2015-22 | final          | excluded     |     224655 |              45260 |     161650 |                   17745 |   206910 |                   0.219 |
-| 2015-22 | final          | main         |     944153 |             179954 |     673696 |                   90503 |   853650 |                   0.211 |
+| 2015-22 | final          | main         |     944112 |             179952 |     673690 |                   90470 |   853642 |                   0.211 |
 | 2023+   | final          | excluded     |     105315 |              17828 |      73270 |                   14217 |    91098 |                   0.196 |
-| 2023+   | final          | main         |     445489 |              72897 |     324845 |                   47747 |   397742 |                   0.183 |
+| 2023+   | final          | main         |     445473 |              72881 |     324845 |                   47747 |   397726 |                   0.183 |
 | 2023+   | provisional    | excluded     |      30148 |                945 |       3873 |                   25330 |     4818 |                   0.196 |
 | 2023+   | provisional    | main         |     115571 |               2237 |      13551 |                   99783 |    15788 |                   0.142 |
 
@@ -103,11 +103,11 @@ A market without a prediction date in a quarter is not listed.
 | 2024-Q3   |                             6 |                                                            |
 | 2024-Q4   |                             5 | Austin                                                     |
 | 2025-Q1   |                             4 | Nashville, Austin                                          |
-| 2025-Q2   |                             3 | Nashville, Seattle, Denver                                 |
-| 2025-Q3   |                             0 | Seattle, San Diego, Denver, New Orleans, Nashville         |
-| 2025-Q4   |                             0 | Seattle, Denver, San Diego, New Orleans                    |
-| 2026-Q1   |                             0 | San Diego, New Orleans                                     |
-| 2026-Q2   |                             0 | San Diego, Nashville, Denver, New Orleans, Seattle, Austin |
+| 2025-Q2   |                             3 | Nashville, Denver, Seattle                                 |
+| 2025-Q3   |                             0 | San Diego, New Orleans, Nashville, Denver, Seattle         |
+| 2025-Q4   |                             0 | Denver, New Orleans, San Diego, Seattle                    |
+| 2026-Q1   |                             0 | New Orleans, San Diego                                     |
+| 2026-Q2   |                             0 | New Orleans, Denver, Seattle, Austin, San Diego, Nashville |
 
 ## Reactivation after confirmed absence
 
@@ -115,5 +115,5 @@ Right-censored: later prediction dates have less time after C3 in which to be se
 
 | era     |   absent_confirmed |   seen_again_after_c3 |
 |:--------|-------------------:|----------------------:|
-| 2015-22 |             225214 |                 0.118 |
-| 2023+   |              90725 |                 0.066 |
+| 2015-22 |             225212 |                 0.118 |
+| 2023+   |              90709 |                 0.066 |

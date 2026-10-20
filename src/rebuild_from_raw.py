@@ -21,9 +21,11 @@ OUT = LOCAL / "raw_fields"
 EXTRACT = LOCAL / "listings_6city.parquet"
 
 # curated column <- raw column (NULL when a raw file lacks it)
-# only the columns the curated table gets wrong; other host fields are intact
+# columns the curated table gets wrong, plus raw fields it never extracted:
+# last_scraped (when each row was actually collected), source ('city scrape' /
+# 'previous scrape', from Aug 2022), neighbourhood_cleansed (the curated `zip` mixes fields)
 RAW_COLS = ["id", "price", "host_id", "host_since", "host_response_time", "host_response_rate",
-            "host_acceptance_rate"]
+            "host_acceptance_rate", "last_scraped", "source", "neighbourhood_cleansed"]
 
 
 def snapshot_files(con):
@@ -63,6 +65,11 @@ def rebuild_file(con, f):
                        TRY_CAST({col['id']} AS BIGINT) AS list_id,
                        TRY_CAST({col['host_id']} AS BIGINT) AS host_id,
                        TRY_CAST(regexp_replace({text(col['price'])}, '[$,]', '', 'g') AS DOUBLE) AS price,
+                       TRY_CAST({text(col['last_scraped'])} AS DATE) AS last_scraped,
+                       {text(col['source'])} AS source,
+                       {text(col['neighbourhood_cleansed'])} AS neighbourhood,
+                       -- ids written in scientific notation (e.g. 6.2610005361e+17) have lost precision
+                       regexp_matches({col['id']}, '[eE.]') AS id_imprecise,
                        rn
                 FROM r WHERE TRY_CAST({col['id']} AS BIGINT) IS NOT NULL
                 ORDER BY TRY_CAST({col['id']} AS BIGINT), rn
@@ -77,7 +84,8 @@ def rebuild_file(con, f):
                 FROM r WHERE TRY_CAST({col['host_id']} AS BIGINT) IS NOT NULL
                 ORDER BY TRY_CAST({col['host_id']} AS BIGINT), rn
             )
-            SELECT '{f.FILE_ID}' AS KEY_FILE, l.list_id, l.price, h.* EXCLUDE (host_id)
+            SELECT '{f.FILE_ID}' AS KEY_FILE, l.list_id, l.price, l.last_scraped, l.source,
+                   l.neighbourhood, l.id_imprecise, h.* EXCLUDE (host_id)
             FROM listing l LEFT JOIN host h USING (host_id)
         ) TO '{OUT / (f.FILE_ID + ".parquet")}' (FORMAT parquet)
     """)

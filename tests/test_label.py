@@ -23,6 +23,8 @@ T = D(2018, 7, 1)                       # prediction date used in most scenarios
 C1, C2, C3 = D(2018, 10, 1), D(2019, 1, 1), D(2019, 4, 1)
 MONTHS = list(pd.date_range("2018-01-01", periods=24, freq="MS").date)
 FILL = 100
+# synthetic rows are collected on their snapshot date, so no scrape lag is needed
+TEST_PARAMS = {**label.PARAMS, "max_scrape_lag_days": 0}
 
 
 @dataclass
@@ -53,17 +55,20 @@ def city(city_id, snaps, listings=(), partial=(), contraction=None):
     return rows
 
 
-def run(rows, as_of=None):
+def run(rows, as_of=None, params=None, scrape_lag=0):
+    """Build labels from synthetic rows; every row is collected `scrape_lag` days after its snapshot."""
     con = duckdb.connect()
     df = pd.DataFrame(rows, columns=["city_id", "snap", "list_id", "host_id", "last_review_date",
                                      "overall_rating", "number_of_reviews"])
+    df["last_scraped"] = df["snap"] + timedelta(days=scrape_lag)
     con.register("df", df)
     con.execute("""CREATE TABLE ls AS
                    SELECT city_id::INTEGER AS city_id, snap::DATE AS snap, list_id::BIGINT AS list_id,
-                          host_id::BIGINT AS host_id, last_review_date::DATE AS last_review_date,
+                          host_id::BIGINT AS host_id, last_scraped::DATE AS last_scraped,
+                          last_review_date::DATE AS last_review_date,
                           overall_rating::DOUBLE AS overall_rating, number_of_reviews::DOUBLE AS number_of_reviews
                    FROM df""")
-    label.build(con, as_of=as_of)
+    label.build(con, params or TEST_PARAMS, as_of=as_of)
     return con
 
 
@@ -386,3 +391,30 @@ def test_final_labels_never_change_as_data_arrives(make):
         seen = max(seen, len(got))
         cutoff += timedelta(15)
     assert seen > 0
+
+
+# --- scrape lag: snapshots are known when collected, not on their file date -------------
+
+LAG_PARAMS = {**label.PARAMS, "max_scrape_lag_days": 7}
+
+
+def test_known_dates_follow_collection_not_file_date():
+    con = run(scenario_a(), params=LAG_PARAMS, scrape_lag=6)
+    s = one(con, "SELECT * FROM schedule WHERE city_id = 1 AND snap = ?", T)
+    assert as_date(s.available_at) == T + timedelta(6) and as_date(s.status_known_at) == T + timedelta(6)
+    p = one(con, "SELECT * FROM prediction_dates WHERE city_id = 1 AND t = ?", T)
+    assert as_date(p.decision_date) == T + timedelta(6)
+    # C3 window ends t+315; rows dated in it can arrive up to 7 days later
+    assert as_date(cp(con, 1, T).label_final_at) == T + timedelta(315 + 7)
+
+
+def test_rows_scraped_later_than_assumed_are_rejected():
+    with pytest.raises(ValueError, match="max_scrape_lag_days"):
+        run(scenario_a(), params=LAG_PARAMS, scrape_lag=10)
+
+
+def test_as_of_compares_collection_dates():
+    rows = [r for r in scenario_a() if r[1] <= T]
+    with pytest.raises(ValueError, match="after as_of"):
+        run(rows, as_of=T + timedelta(3), params=LAG_PARAMS, scrape_lag=6)   # T collected on T+6
+    assert run(rows, as_of=T + timedelta(6), params=LAG_PARAMS, scrape_lag=6) is not None

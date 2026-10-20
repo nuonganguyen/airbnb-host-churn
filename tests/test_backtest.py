@@ -92,3 +92,22 @@ def test_development_run_stops_before_holdout():
     assert max(quarters) < backtest.HOLDOUT[0]
     assert all(e <= backtest.HOLDOUT[0] for s, e in backtest.quarter_starts(backtest.FIRST_DEPLOYMENT,
                                                                              backtest.HOLDOUT[0]))
+
+
+def test_policy_variants_run_on_real_fold_frames():
+    """The exclude variant's training, evaluation and scoring paths must work on the frames
+    the backtest actually builds (training_frame / evaluation_frame)."""
+    import quality
+    months = list(pd.date_range("2018-01-01", periods=48, freq="MS").date)
+    leavers = [Listing(i, lambda s, i=i: s <= date(2018, 1, 1) + timedelta(days=60 * i)) for i in range(1, 25)]
+    con = run(enrich(city(31, months, leavers)))
+    from features import training_frame
+    policy = {"policy_version": "t", "breaks": [{"markets": {"31": ["2019-01-01", "2019-06-01"]}}],
+              "variants": {"exclude": {"apply_breaks": True, "effective_date": "2020-01-01"}}}
+    start, end = date(2020, 7, 1), date(2020, 10, 1)
+    train = training_frame(con, start)
+    kept = quality.apply_policy(quality.apply_policy(train, policy, "exclude", "train", start), policy, "exclude", "score")
+    ev = backtest.evaluation_frame(con, start, end)
+    scored = quality.apply_policy(quality.apply_policy(ev, policy, "exclude", "evaluate"), policy, "exclude", "score")
+    assert 0 < len(kept) < len(train)               # follow-ups spanning the gap are dropped
+    assert "history_crosses_break" in kept and "history_crosses_break" in scored

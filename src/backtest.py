@@ -2,7 +2,9 @@
 
 One fold per deployment quarter Q: train on features.training_frame(Q), validate on
 the latest 2 training quarters (early stopping + Platt calibration), then score the
-eligible prediction-date rows in Q. Preprocessing is fitted inside each fold.
+eligible prediction-date rows in Q. Preprocessing is fitted inside each fold. Every run
+covers both quality-policy variants (config/quality_policy.json): `retain` (primary)
+and `exclude` (prespecified sensitivity).
 
     python src/backtest.py             # development folds, before the holdout block
     python src/backtest.py --holdout   # the shared holdout block, once, at the very end
@@ -20,6 +22,7 @@ import features
 from db import CITIES, LOCAL, PROJECT
 from label import md
 from model import RULES, Prep, fit_lightgbm, fit_logistic, host_precision_at_k, listing_metrics
+from quality import apply_policy, load_policy
 
 HOLDOUT = (date(2023, 10, 1), date(2024, 10, 1))     # docs/label_spec.md §7
 FIRST_DEPLOYMENT = date(2017, 1, 1)
@@ -27,10 +30,9 @@ MIN_TRAIN_ROWS = 50_000
 VAL_QUARTERS = 2
 OUT = LOCAL / "backtest"
 MODELS = ["lr", "lgbm"]
-# folds whose labels cross a known source discontinuity (reported, and excluded in the
-# sensitivity view): ~40% of listings swap between the Jan 2023 and Jun 2023 scrapes
-# at flat counts, and Jan 2023 absence is ~43% regardless of listing characteristics
-SUSPECT_FOLDS = {"2023Q1": "Jan→Jun 2023 source coverage break"}
+VARIANTS = ["retain", "exclude"]
+BLOCK = 4          # quarters per bootstrap block: longer than the ~3-quarter outcome overlap
+HAC_LAGS = 3
 
 
 def connect():
@@ -50,7 +52,7 @@ def quarter_starts(start, end):
 def evaluation_frame(con, start, end):
     """Eligible rows at prediction dates in [start, end) whose outcome is known."""
     return con.execute("""
-        SELECT f.*, l.outcome = 'absent_confirmed' AS target
+        SELECT f.*, l.outcome = 'absent_confirmed' AS target, l.c2, l.c3
         FROM features f
         JOIN labels l ON l.city_id = f.city_id AND l.list_id = f.list_id AND l.t = f.t
         WHERE l.eligible_main AND l.label_status = 'final'
@@ -66,9 +68,11 @@ def split_validation(train):
     return train[~is_val], train[is_val]
 
 
-def run_fold(con, start, end):
+def run_fold(con, start, end, policy, variant):
     train = features.training_frame(con, start)
+    train = apply_policy(apply_policy(train, policy, variant, "train", start), policy, variant, "score")
     ev = evaluation_frame(con, start, end)
+    ev = apply_policy(apply_policy(ev, policy, variant, "evaluate"), policy, variant, "score")
     if len(train) < MIN_TRAIN_ROWS or ev.empty:
         return None
     assert (pd.to_datetime(train["label_final_at"]) < pd.Timestamp(start)).all()
@@ -88,69 +92,84 @@ def run_fold(con, start, end):
         hp, n_hosts, host_base = host_precision_at_k(preds, name)
         rows.append({"quarter": f"{pd.Period(start, freq='Q')}", "model": name, **m, **hp})
     meta = {"quarter": f"{pd.Period(start, freq='Q')}", "n_train": len(fit_df), "n_val": len(val_df),
+            "n_masked_eval": int(ev["history_crosses_break"].sum()),
             "n_eval": len(ev), "base_rate": float(ev["target"].mean()), "n_hosts": n_hosts,
             "host_base_rate": host_base, "lgbm_trees": booster.best_iteration_}
     gain = pd.Series(booster.booster_.feature_importance("gain"), index=booster.booster_.feature_name())
     return preds, rows, meta, gain / gain.sum()
 
 
-def bootstrap_mean_ci(x, n=2000, seed=0):
+def block_bootstrap_ci(x, block=BLOCK, n=4000, seed=0):
+    """Moving-block bootstrap over consecutive folds, for serially dependent fold metrics."""
+    x = np.asarray(x, dtype=float)
+    k = len(x)
+    block = min(block, k)
+    starts = np.arange(k - block + 1)
     rng = np.random.default_rng(seed)
-    x = np.asarray(x)
-    means = rng.choice(x, size=(n, len(x)), replace=True).mean(axis=1)
+    n_blocks = int(np.ceil(k / block))
+    means = np.array([np.concatenate([x[s:s + block] for s in rng.choice(starts, n_blocks)])[:k].mean()
+                      for _ in range(n)])
     return float(x.mean()), float(np.quantile(means, 0.025)), float(np.quantile(means, 0.975))
 
 
-def report(metrics, meta, gains, holdout):
-    rule_names = [m for m in metrics.model.unique() if m.startswith("rule:")]
-    if holdout:
-        best_rule = (pd.read_csv(OUT / "dev_metrics.csv").query("model.str.startswith('rule:')", engine="python")
-                     .groupby("model").ap.mean().idxmax())
-    else:
-        best_rule = metrics[metrics.model.isin(rule_names)].groupby("model").ap.mean().idxmax()
-    shown = MODELS + [best_rule]
-    wide = metrics[metrics.model.isin(shown)].pivot(index="quarter", columns="model")
-    per_fold = meta.set_index("quarter").join(pd.DataFrame({
-        **{f"AP {m}": wide["ap"][m] for m in shown},
-        **{f"host P@500 {m}": wide["host_p@500"][m] for m in shown},
-    })).reset_index()
+def newey_west_ci(x, lags=HAC_LAGS):
+    """Mean with a HAC (Bartlett-kernel) standard error; normal 95% interval."""
+    x = np.asarray(x, dtype=float)
+    e = x - x.mean()
+    k = len(x)
+    var = e @ e / k + 2 * sum((1 - j / (lags + 1)) * (e[j:] @ e[:-j]) / k for j in range(1, min(lags, k - 1) + 1))
+    se = np.sqrt(max(var, 0) / k)
+    return float(x.mean()), float(x.mean() - 1.96 * se), float(x.mean() + 1.96 * se)
 
-    summary = (metrics[metrics.model.isin(shown + rule_names)].groupby("model")
-               [["ap", "auc", "host_p@100", "host_p@500", "host_p@1000"]].mean().round(3)
-               .sort_values("ap", ascending=False).reset_index())
+
+def best_rule_from(metrics):
+    rules = metrics[metrics.model.str.startswith("rule:") & (metrics.variant == "retain")]
+    return rules.groupby("model").ap.mean().idxmax()
+
+
+def report(metrics, meta, gains, holdout, policy):
+    # the rule baseline is always chosen on the primary (retain) development folds
+    best_rule = best_rule_from(pd.read_csv(OUT / "dev_metrics.csv") if holdout else metrics)
+    shown = MODELS + [best_rule]
+    cols = ["ap", "auc", "host_p@100", "host_p@500", "host_p@1000"]
+    summary = (metrics[metrics.model.isin(shown)].groupby(["variant", "model"])[cols].mean().round(3)
+               .reset_index().sort_values(["variant", "ap"], ascending=[False, False]))
     lifts = []
-    for m in MODELS:
-        for col in ["ap", "host_p@500"]:
-            d = wide[col][m] - wide[col][best_rule]
-            mean, lo, hi = bootstrap_mean_ci(d)
-            lifts.append({"comparison": f"{m} − {best_rule}", "metric": col, "mean_diff": round(mean, 3),
-                          "95% CI (folds)": f"[{lo:.3f}, {hi:.3f}]", "folds_better": f"{(d > 0).sum()}/{len(d)}"})
-    clean = metrics[~metrics.quarter.isin(SUSPECT_FOLDS)]
-    sensitivity = (clean[clean.model.isin(shown)].groupby("model")
-                   [["ap", "auc", "host_p@100", "host_p@500", "host_p@1000"]].mean().round(3)
-                   .sort_values("ap", ascending=False).reset_index())
-    clean_wide = wide[~wide.index.isin(SUSPECT_FOLDS)]
-    for m in MODELS:
-        d = clean_wide["host_p@500"][m] - clean_wide["host_p@500"][best_rule]
-        mean, lo, hi = bootstrap_mean_ci(d)
-        lifts.append({"comparison": f"{m} − {best_rule} (excl. suspect folds)", "metric": "host_p@500",
-                      "mean_diff": round(mean, 3), "95% CI (folds)": f"[{lo:.3f}, {hi:.3f}]",
-                      "folds_better": f"{(d > 0).sum()}/{len(d)}"})
+    for v in VARIANTS:
+        wide = metrics[(metrics.variant == v) & metrics.model.isin(shown)].pivot(index="quarter", columns="model")
+        for m in MODELS:
+            for col in ["ap", "host_p@500"]:
+                d = (wide[col][m] - wide[col][best_rule]).sort_index()
+                mean, blo, bhi = block_bootstrap_ci(d)
+                _, hlo, hhi = newey_west_ci(d)
+                lifts.append({"variant": v, "comparison": f"{m} − {best_rule}", "metric": col,
+                              "mean_diff": round(mean, 3), f"block bootstrap (b={BLOCK})": f"[{blo:.3f}, {bhi:.3f}]",
+                              f"Newey–West (lag {HAC_LAGS})": f"[{hlo:.3f}, {hhi:.3f}]",
+                              "folds_better": f"{(d > 0).sum()}/{len(d)}"})
+    prim = metrics[metrics.variant == "retain"]
+    pm = meta[meta.variant == "retain"]
     era = lambda q: "2017–19" if q < "2020" else ("2020–21" if q < "2022" else "2022–23")
     by_era = (metrics[metrics.model.isin(shown)].assign(era=lambda d: d.quarter.map(era))
-              .groupby(["era", "model"]).ap.mean().unstack().round(3).reset_index())
-    calib = metrics[metrics.model.isin(MODELS)].merge(meta[["quarter", "base_rate"]], on="quarter")
+              .groupby(["variant", "era", "model"]).ap.mean().unstack().round(3).reset_index())
+    calib = prim[prim.model.isin(MODELS)].merge(pm[["quarter", "base_rate"]], on="quarter")
     calib = (calib.assign(gap=lambda d: d.mean_pred - d.base_rate).groupby("model")
              .agg(brier=("brier", "mean"), mean_abs_gap=("gap", lambda g: g.abs().mean()),
                   worst_gap=("gap", lambda g: g.loc[g.abs().idxmax()])).round(4).reset_index())
+    wide = prim[prim.model.isin(shown)].pivot(index="quarter", columns="model")
+    per_fold = pm.drop(columns="variant").set_index("quarter").join(pd.DataFrame({
+        **{f"AP {m}": wide["ap"][m] for m in shown},
+        **{f"host P@500 {m}": wide["host_p@500"][m] for m in shown}})).reset_index()
+    diff = (metrics[metrics.model == "lgbm"].pivot(index="quarter", columns="variant", values="host_p@500")
+            .assign(difference=lambda d: d["exclude"] - d["retain"]).round(3).reset_index())
+    diff = diff[diff.difference.abs() > 0]
     top = gains.mean(axis=1).sort_values(ascending=False).head(20).round(4).rename("mean_gain_share").reset_index()
     top.columns = ["feature", "mean_gain_share"]
 
     name = "holdout" if holdout else "development"
     lines = [
         f"# Backtest Summary: {name}", "",
-        f"Built {date.today():%Y-%m-%d} by `src/backtest.py`. {len(meta)} quarterly folds, "
-        f"{meta.quarter.iloc[0]}–{meta.quarter.iloc[-1]}. "
+        f"Built {date.today():%Y-%m-%d} by `src/backtest.py` under quality policy `{policy['policy_version']}`. "
+        f"{pm.quarter.nunique()} quarterly folds, {pm.quarter.iloc[0]}–{pm.quarter.iloc[-1]}. "
         + ("The shared holdout block (2023-Q4–2024-Q3) was **not** used." if not holdout else
            "Shared holdout block; the rule baseline was fixed from the development folds."), "",
         "Each fold trains on final, usable, eligible labels with `label_final_at` before the quarter starts, "
@@ -158,18 +177,24 @@ def report(metrics, meta, gains, holdout):
         "quarter's prediction dates. Host precision@K ranks unique hosts (host at *t*) by their riskiest "
         "listing; a hit is a host with ≥ 1 listing `absent_confirmed`. Scores are predictive associations, "
         "not causes.", "",
-        f"Best simple rule (highest mean AP on the development folds): `{best_rule}`.", "",
+        "**Variants** (`config/quality_policy.json`): `retain` is the primary analysis and keeps every outcome. "
+        "`exclude` is the prespecified sensitivity analysis: it drops comparisons whose follow-up crosses a suspected "
+        "source break and masks history features that cross it, only for decisions on/after the policy's effective "
+        f"date ({policy['variants']['exclude']['effective_date']}). Both are reported regardless of which scores higher.", "",
+        f"Best simple rule (highest mean AP, primary development folds): `{best_rule}`.", "",
         "## Mean over folds", "", md(summary), "",
-        "## Sensitivity: excluding suspect folds", "",
-        "; ".join(f"`{q}`: {why}" for q, why in SUSPECT_FOLDS.items()) + ".", "", md(sensitivity), "",
         "## Lift over the best rule", "",
-        "CI from a bootstrap over folds. Outcomes overlap across folds (~9-month follow-up), so treat "
-        "the intervals as approximate.", "", md(pd.DataFrame(lifts)), "",
+        "Fold metrics are serially dependent (outcomes follow up for ~9 months, so neighbouring folds overlap). "
+        f"Intervals use a moving-block bootstrap over consecutive folds (blocks of {BLOCK} quarters) and a "
+        f"Newey–West HAC standard error (lag {HAC_LAGS}). Both are approximate with this few folds.", "",
+        md(pd.DataFrame(lifts)), "",
+        "## Folds where the variants differ (LightGBM host P@500)", "",
+        md(diff) if len(diff) else "None.", "",
         "## Average precision by era", "", md(by_era), "",
-        "## Calibration (Platt on the validation quarters)", "",
+        "## Calibration, primary variant (Platt on the validation quarters)", "",
         "`gap` = mean predicted probability − observed rate in the evaluation quarter.", "", md(calib), "",
-        "## Per fold", "", md(per_fold.round(3)), "",
-        "## LightGBM: top 20 features by gain share (mean over folds)", "", md(top), "",
+        "## Per fold, primary variant", "", md(per_fold.round(3)), "",
+        "## LightGBM: top 20 features by gain share (primary, mean over folds)", "", md(top), "",
     ]
     (PROJECT / "reports" / f"backtest_{name}.md").write_text("\n".join(lines))
 
@@ -177,6 +202,7 @@ def report(metrics, meta, gains, holdout):
 def main(holdout=False):
     OUT.mkdir(parents=True, exist_ok=True)
     con = connect()
+    policy = load_policy()
     if holdout:
         if not (OUT / "dev_metrics.csv").exists():
             sys.exit("run the development backtest first; the holdout is evaluated once, at the end")
@@ -188,25 +214,30 @@ def main(holdout=False):
     for start, end in quarter_starts(*span):
         if not holdout and end > HOLDOUT[0]:
             break
-        out = run_fold(con, start, end)
-        if out is None:
-            print(f"{pd.Period(start, freq='Q')}: skipped (too little training data or no outcomes)", flush=True)
-            continue
-        preds, rows, meta, gain = out
-        all_preds.append(preds.assign(quarter=meta["quarter"]))
-        all_rows += rows
-        metas.append(meta)
-        gains[meta["quarter"]] = gain
-        lg = next(r for r in rows if r["model"] == "lgbm")
-        print(f"{meta['quarter']}: train {meta['n_train']:,} eval {meta['n_eval']:,} base {meta['base_rate']:.3f} "
-              f"lgbm AP {lg['ap']:.3f} P@500 {lg['host_p@500']:.3f}  [{time.time() - t0:.0f}s]", flush=True)
+        for variant in VARIANTS:
+            out = run_fold(con, start, end, policy, variant)
+            if out is None:
+                print(f"{pd.Period(start, freq='Q')} {variant}: skipped (too little training data or no outcomes)",
+                      flush=True)
+                continue
+            preds, rows, meta, gain = out
+            q = meta["quarter"]
+            all_preds.append(preds.assign(quarter=q, variant=variant))
+            all_rows += [{**r, "variant": variant} for r in rows]
+            metas.append({**meta, "variant": variant})
+            if variant == "retain":
+                gains[q] = gain
+            lg = next(r for r in rows if r["model"] == "lgbm")
+            print(f"{q} {variant}: train {meta['n_train']:,} eval {meta['n_eval']:,} masked {meta['n_masked_eval']:,} "
+                  f"base {meta['base_rate']:.3f} lgbm AP {lg['ap']:.3f} P@500 {lg['host_p@500']:.3f}  "
+                  f"[{time.time() - t0:.0f}s]", flush=True)
     name = "holdout" if holdout else "dev"
     metrics, meta = pd.DataFrame(all_rows), pd.DataFrame(metas)
     pd.concat(all_preds).to_parquet(OUT / f"{name}_predictions.parquet", index=False)
     metrics.to_csv(OUT / f"{name}_metrics.csv", index=False)
     meta.to_csv(OUT / f"{name}_folds.csv", index=False)
     pd.DataFrame(gains).fillna(0.0).to_csv(OUT / f"{name}_gains.csv")
-    report(metrics, meta, pd.DataFrame(gains).fillna(0.0), holdout)
+    report(metrics, meta, pd.DataFrame(gains).fillna(0.0), holdout, policy)
     print(f"report -> reports/backtest_{'holdout' if holdout else 'development'}.md")
 
 
@@ -214,7 +245,7 @@ def report_only(holdout=False):
     """Rebuild the report from saved fold results, without refitting."""
     name = "holdout" if holdout else "dev"
     report(pd.read_csv(OUT / f"{name}_metrics.csv"), pd.read_csv(OUT / f"{name}_folds.csv"),
-           pd.read_csv(OUT / f"{name}_gains.csv", index_col=0), holdout)
+           pd.read_csv(OUT / f"{name}_gains.csv", index_col=0), holdout, load_policy())
 
 
 if __name__ == "__main__":

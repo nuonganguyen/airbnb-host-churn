@@ -12,7 +12,7 @@ from features import ALLOWLIST, model_matrix
 
 NUMERIC = [c for c, k in ALLOWLIST.items() if k in ("numeric", "binary")]
 CATEGORICAL = [c for c, k in ALLOWLIST.items() if k == "categorical"]
-PRICE_LIKE = ["price", "price_rel_room_median", "price_rel_zip_median", "price_change_90", "price_change_365"]
+PRICE_LIKE = ["price", "price_rel_room_median", "price_rel_neighbourhood_median", "price_change_90", "price_change_365"]
 MIN_CATEGORY_SHARE = 0.001
 SEED = 7
 

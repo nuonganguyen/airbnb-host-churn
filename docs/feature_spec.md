@@ -12,32 +12,37 @@ scoring (current rows). It currently has 1,865,331 rows, one per key.
 ## 2. Information rule
 
 A row uses only:
-- **The snapshot at *t*.**
+- **The snapshot at *t*,** whose rows finished collecting at `decision_date` (≥ *t*). History counts only if its status
+  was known by `decision_date`.
 - **History snapshots** dated **before *t*** whose status (`ok`, `insufficient_history`, `suspected_contraction`)
   was **known by *t***. Partial scrapes, unresolved anomalies and pending anomalies are never history.
-- **Per-snapshot aggregates** (city, room type, zip, host) computed from that snapshot's rows alone.
+- **Per-snapshot aggregates** (city, room type, neighbourhood, host) computed from that snapshot's rows alone.
 
 So data arriving after *t* cannot change a row. Tests rebuild every prediction date from data truncated at *t*,
 and from data whose later rows were changed, dropped and added to. Each must match the full build exactly.
 
-## 3. Approved predictors (`features.ALLOWLIST`, 142)
+## 3. Approved predictors (`features.ALLOWLIST`, 61)
 
 | Group | Predictors | Notes |
 |---|---|---|
-| State at *t* | price, price_missing, capacity, bathrooms, bedrooms, beds, min/max nights, availability 30/60/90/365, number_of_reviews, 7 ratings, amenity_count, descrip_word_count, host_about_word_count, superhost, host_listing_count, host_has_pic, host_verified | raw values |
+| State at *t* | price, price_missing, capacity, bathrooms, bedrooms, beds, min/max nights, availability 30/60/90/365, number_of_reviews, 7 ratings, amenity_count, amenity_count_pct, descrip_word_count, host_about_word_count, superhost, host_listing_count, host_has_pic, host_verified | raw values; `amenity_count_pct` is the listing's percentile within its own snapshot, which survives changes in amenity formats |
 | Categories | city_id, room_type, listing_type, quarter_of_year | encoded per fold |
-| Amenities | AC1–AC82 | binary |
-| Tenure / recency | days_since_first_observed, first_observed_censored, host_tenure_days, days_since_last_review, days_since_first_review | "first observed", not "created": censored if first seen within 180 d of coverage start |
+| Tenure / recency | days_since_first_observed, first_observed_censored, host_tenure_days, days_since_last_review, days_since_first_review | measured from `decision_date`, when the snapshot finished collecting; "first observed", not "created": censored if first seen within 180 d of coverage start |
 | ~90-day change | lag90_days, present_lag90, price_change_90, avail365_change_90, rating_change_90, reviews_added_90, review_rate_90, reviews_decreased_90 | anchor: the history snapshot nearest *t*−90 (±45 d); **elapsed days included**; rates per 30 days |
 | ~365-day change | lag365_days, present_lag365, price_change_365, reviews_added_365, review_rate_365 | anchor nearest *t*−365 (±45 d) |
 | Presence | hist_snapshots_365, hist_present_365, presence_rate_365 | share of usable snapshots in the past year with the listing; a rate, so it works for both monthly and quarterly snapshots |
 | Host portfolio | host_n_listings, host_listings_change_90 | the host's listings in this city, counted from the data |
-| Market | city_n_listings, city_supply_growth_365, price_rel_room_median, zip_n_listings, zip_supply_growth_365, price_rel_zip_median | growth uses usable anchor snapshots only |
+| Market | city_n_listings, city_supply_growth_365, price_rel_room_median, neighbourhood_n_listings, neighbourhood_supply_growth_365, price_rel_neighbourhood_median | growth uses usable anchor snapshots only; neighbourhood = raw `neighbourhood_cleansed` |
 
 **Not predictors (`features.FORBIDDEN`):**
 - **Label outputs:** checkpoints, presence at checkpoints, outcome, `host_changed`, finality fields. These are derived from the future.
 - **Population filters:** `eligible_main` and its parts.
-- **Identifiers:** listing and host IDs, raw `zip`.
+- **Identifiers:** listing and host IDs, `neighbourhood` itself.
+- **Curated amenity flags `AC1`–`AC82`:** each code is a factor position of a hand label, built from all years at once. One is the
+  discard label "remove", and prevalence is implausible and unstable (e.g. "waterslide" 96% in 2016, "alarm" 96% in
+  2021–22; 16 of 82 flags move by more than 0.20 between years).
+- **Curated `zip`:** despite the name, it mostly holds `neighbourhood_cleansed` (Seattle "Alki", New Orleans "Audubon";
+  Austin's neighbourhoods are zip codes), with other values mixed in for Austin 2022 (80 values vs 44).
 - **Fields missing at deployment:** host response time, response rate and acceptance rate (absent from Dec 2025), and location-overview counts (100% missing in 2026).
 
 `model_matrix()` returns exactly the allowlist, in a fixed order, and fails if any predictor is missing.
@@ -67,4 +72,10 @@ WHERE eligible_main
 - **Lag anchors can be missing:** the 90-day anchor is absent for 11% of 2023+ rows (longer gaps between snapshots), and the 365-day anchor for 6–8%. Change features are then NULL, and imputation plus missing-value indicators handle it in each fold.
 - **Small negative recency values:** `days_since_last_review` can be slightly negative (up to ~21 days), because the source file date comes before its scrape.
 - **Price missingness shifts over time.** It's informative but changes across eras, so watch it in backtests by era.
-- **Zip quality:** zip-level features are only as good as the source zip field.
+- **Neighbourhood definitions:** neighbourhood features assume `neighbourhood_cleansed` boundaries are stable within a market.
+
+## 7. Quality policy
+
+`src/quality.py` applies the variants in `config/quality_policy.json` on top of these features without changing the
+table. Under `exclude`, for decisions on/after the effective date, history features whose windows span a registered
+break are set to NULL (`history_crosses_break` marks them, as metadata, not a predictor).

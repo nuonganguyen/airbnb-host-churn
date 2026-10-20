@@ -1,15 +1,19 @@
--- Listing absence labels, per docs/label_spec.md (v3).
--- Input: table ls(city_id, snap, list_id, host_id, last_review_date, overall_rating,
---        number_of_reviews), one row per listing per snapshot.
+-- Listing absence labels, per docs/label_spec.md (v4).
+-- Input: table ls(city_id, snap, list_id, host_id, last_scraped, last_review_date,
+--        overall_rating, number_of_reviews), one row per listing per snapshot. `snap` is
+--        the file date that keys a snapshot; `last_scraped` is when each row was collected.
 -- Parameters: DuckDB variables set by src/label.py (tol_days, anomaly_ratio, ...).
---   as_of: the date the data is current to (NULL -> each city's latest snapshot).
+--   as_of: the date the data is current to (NULL -> each city's latest available_at).
 -- Output tables: schedule, prediction_dates, checkpoints, labels.
 
--- 1. Operational observation schedule. Every status records when it became known
---    (status_known_at); nothing uses data from after that date.
+-- 1. Operational observation schedule. A snapshot is available once its last row was
+--    scraped (available_at, which can trail the file date by days). Every status records
+--    when it became known (status_known_at); nothing uses data from after that date.
 CREATE OR REPLACE TABLE schedule AS
 WITH counts AS (
-    SELECT city_id, snap, COUNT(*) AS n_listings FROM ls GROUP BY ALL
+    SELECT city_id, snap, COUNT(*) AS n_listings,
+           GREATEST(snap, COALESCE(MAX(last_scraped), snap)) AS available_at
+    FROM ls GROUP BY city_id, snap
 ),
 ordered AS (
     SELECT *,
@@ -17,7 +21,7 @@ ordered AS (
                           ROWS BETWEEN 3 PRECEDING AND 1 PRECEDING) AS n_prior,
            median(n_listings) OVER (PARTITION BY city_id ORDER BY snap
                                     ROWS BETWEEN 3 PRECEDING AND 1 PRECEDING) AS trailing_median,
-           COALESCE(getvariable('as_of'), MAX(snap) OVER (PARTITION BY city_id)) AS as_of
+           COALESCE(getvariable('as_of'), MAX(available_at) OVER (PARTITION BY city_id)) AS as_of
     FROM counts
 ),
 flags AS (
@@ -55,12 +59,13 @@ gone AS (
 resolved AS (
     SELECT f.*,
            f.n_listings / f.trailing_median AS trailing_ratio,
-           rf.reference_snap, rv.resolver_snap,
+           rf.reference_snap, rv.resolver_snap, ra.available_at AS resolver_available_at,
            COALESCE(g.n_missing, 0) AS n_missing,
            CASE WHEN rv.resolver_snap IS NOT NULL THEN g.n_returned / NULLIF(g.n_missing, 0) END AS return_rate
     FROM flags f
     LEFT JOIN reference rf USING (city_id, snap)
     LEFT JOIN resolver rv USING (city_id, snap)
+    LEFT JOIN counts ra ON ra.city_id = f.city_id AND ra.snap = rv.resolver_snap
     LEFT JOIN gone g USING (city_id, snap)
 )
 SELECT *,
@@ -72,8 +77,8 @@ SELECT *,
             WHEN as_of >= snap + getvariable('resolve_max_days') THEN 'anomaly_unresolved'
             ELSE 'anomaly_pending' END AS status,
        status IN ('ok', 'suspected_contraction') AS usable_checkpoint,
-       CASE WHEN status IN ('ok', 'insufficient_history') THEN snap
-            WHEN status IN ('partial_scrape', 'suspected_contraction') THEN resolver_snap
+       CASE WHEN status IN ('ok', 'insufficient_history') THEN available_at
+            WHEN status IN ('partial_scrape', 'suspected_contraction') THEN resolver_available_at
             WHEN status = 'anomaly_unresolved' THEN snap + getvariable('resolve_max_days')
        END AS status_known_at
 FROM resolved;
@@ -81,19 +86,20 @@ FROM resolved;
 -- 2. Prediction dates: earliest 'ok' snapshot per city and calendar quarter. Flagged
 --    snapshots are excluded because their status is unknown at decision time.
 CREATE OR REPLACE TABLE prediction_dates AS
-SELECT city_id, snap AS t
+SELECT city_id, snap AS t, available_at AS decision_date
 FROM schedule
 WHERE status = 'ok'
 QUALIFY row_number() OVER (PARTITION BY city_id, date_trunc('quarter', snap) ORDER BY snap) = 1;
 
 -- 3. Checkpoints, once per city and prediction date: nearest usable snapshot within
 --    tolerance (ties -> earlier date); C3 strictly after C2; C1 independent.
---    A checkpoint is final once its window has closed and every snapshot that would
---    outrank the pick, were it usable, has a known status.
+--    A checkpoint is final once every snapshot dated in its window can have arrived
+--    (window end + max_scrape_lag_days) and every snapshot that would outrank the pick,
+--    were it usable, has a known status.
 CREATE OR REPLACE TABLE checkpoints AS
 WITH targets AS (
     SELECT p.city_id, p.t, k.checkpoint, p.t + k.days AS target,
-           p.t + k.days + getvariable('tol_days') AS window_closes
+           p.t + k.days + getvariable('tol_days') + getvariable('max_scrape_lag_days') AS window_closes
     FROM prediction_dates p
     CROSS JOIN (VALUES ('c1', 90), ('c2', 180), ('c3', 270)) AS k(checkpoint, days)
 ),

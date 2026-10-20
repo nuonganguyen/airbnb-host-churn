@@ -23,6 +23,7 @@ PARAMS = {
     "anomaly_ratio": 0.75,
     "return_threshold": 0.5,
     "resolve_max_days": 200,
+    "max_scrape_lag_days": 21,  # snapshot rows arrive at most this long after the file date
     "active_review_days": 365,
     "new_window_days": 180,
     "new_min_coverage_days": 180,
@@ -32,20 +33,25 @@ PARAMS = {
 TABLES = ["schedule", "prediction_dates", "checkpoints", "labels"]
 
 
-def check_as_of(con, table, as_of):
-    """Refuse to run when the input holds snapshots dated after the as-of clock."""
+def check_inputs(con, table, as_of, params=PARAMS):
+    """Refuse inputs holding rows collected after the as-of clock, or snapshots whose
+    rows arrive later than the finality rule assumes."""
+    lag = con.execute(f"SELECT MAX(datediff('day', snap, last_scraped)) FROM {table}").fetchone()[0]
+    if lag is not None and lag > params["max_scrape_lag_days"]:
+        raise ValueError(f"{table} has rows scraped {lag} days after their snapshot date, more than "
+                         f"max_scrape_lag_days={params['max_scrape_lag_days']}")
     if as_of is None:
         return
-    latest = con.execute(f"SELECT MAX(snap) FROM {table}").fetchone()[0]
+    latest = con.execute(f"SELECT MAX(GREATEST(snap, COALESCE(last_scraped, snap))) FROM {table}").fetchone()[0]
     if latest is not None and latest > as_of:
-        raise ValueError(f"{table} has snapshots up to {latest}, after as_of={as_of}; "
-                         "filter the input to snap <= as_of first")
+        raise ValueError(f"{table} has rows up to {latest}, after as_of={as_of}; "
+                         "filter the input to rows collected on or before as_of first")
 
 
 def build(con, params=PARAMS, as_of=None):
     """Run sql/03_label.sql against an existing `ls` table. `as_of` is the date the
     data is current to; None means each city's latest snapshot."""
-    check_as_of(con, "ls", as_of)
+    check_inputs(con, "ls", as_of, params)
     for name, value in params.items():
         con.execute(f"SET VARIABLE {name} = {value}")
     con.execute(f"SET VARIABLE as_of = DATE '{as_of}'" if as_of else "SET VARIABLE as_of = NULL::DATE")
@@ -59,10 +65,15 @@ def load_clean(con):
                strptime(DATE, '%Y%m%d')::DATE AS snap,
                TRY_CAST(KEY_LIST_ID AS BIGINT) AS list_id,
                TRY_CAST(KEY_HOST_ID AS BIGINT) AS host_id,
+               -- 28 rows in 4 files carry scrape dates 22-59 days after their file date (after the
+               -- next snapshot); treat those dates as unknown rather than delay the whole snapshot
+               CASE WHEN TRY_CAST(last_scraped AS DATE) <= strptime(DATE, '%Y%m%d')::DATE
+                         + {PARAMS["max_scrape_lag_days"]} THEN TRY_CAST(last_scraped AS DATE) END AS last_scraped,
                TRY_CAST(NULLIF(last_review_date, '') AS DATE) AS last_review_date,
                TRY_CAST(overall_rating AS DOUBLE) AS overall_rating,
                TRY_CAST(number_of_reviews AS DOUBLE) AS number_of_reviews
         FROM '{CLEAN}'
+        WHERE NOT id_imprecise   -- scientific-notation ids cannot be tracked across snapshots
     """)
 
 

@@ -33,8 +33,14 @@ MUTATIONS = [
         ("ROWS BETWEEN 3 PRECEDING AND 1 PRECEDING) AS trailing_median",
          "ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING) AS trailing_median")]),
     ("label: resolution known at the flagged date", "label", [
-        ("WHEN status IN ('partial_scrape', 'suspected_contraction') THEN resolver_snap",
+        ("WHEN status IN ('partial_scrape', 'suspected_contraction') THEN resolver_available_at",
          "WHEN status IN ('partial_scrape', 'suspected_contraction') THEN snap")]),
+    ("label: known at file date, not collection date", "label", [
+        ("WHEN status IN ('ok', 'insufficient_history') THEN available_at",
+         "WHEN status IN ('ok', 'insufficient_history') THEN snap")]),
+    ("label: finality ignores scrape lag", "label", [
+        ("+ getvariable('tol_days') + getvariable('max_scrape_lag_days') AS window_closes",
+         "+ getvariable('tol_days') AS window_closes")]),
     ("label: newness check dropped", "label", [
         ("(recently_first_observed AND newness_known)", "recently_first_observed")]),
     ("label: flagged snapshots as prediction dates", "label", [
@@ -74,6 +80,8 @@ MUTATIONS = [
          "(c.number_of_reviews - x90.number_of_reviews) / 3.0")]),
     ("features: presence window unbounded", "features", [
         ("AND h.snap >= c.t - 365", "")]),
+    ("features: durations from file date", "features", [
+        ("datediff('day', c.last_review_date, c.decision_date)", "datediff('day', c.last_review_date, c.snap)")]),
     ("features: market growth vs latest snapshot", "features", [
         ("LEFT JOIN snap_market m365 ON m365.city_id = c.city_id AND m365.snap = a365.snap",
          "LEFT JOIN snap_market m365 ON m365.city_id = c.city_id AND m365.snap = "

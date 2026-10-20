@@ -15,18 +15,21 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import features  # noqa: E402
 import label  # noqa: E402
-from test_label import MONTHS, Listing, T, as_date, city, scenario_a, scenario_d, scenario_e  # noqa: E402
+from test_label import (LAG_PARAMS, MONTHS, TEST_PARAMS, Listing, T, as_date, city, scenario_a,  # noqa: E402
+                        scenario_d, scenario_e)
 
 D = date
 
 
-def enrich(rows, reviews=None):
-    """Label-test rows -> full lf rows. `reviews`: optional {list_id: f(snap)}."""
+def enrich(rows, reviews=None, lag=0):
+    """Label-test rows -> full lf rows. `reviews`: optional {list_id: f(snap)}; rows are
+    collected `lag` days after their snapshot date."""
     out = []
     for city_id, snap, list_id, host_id, last_review, rating, n_reviews in rows:
         r = {c: 0.0 for c in features.NUMERIC_COLS}
-        r.update(city_id=city_id, snap=snap, list_id=list_id, host_id=host_id,
-                 room_type="Entire home/apt", listing_type="House", zip=f"Z{list_id % 3}",
+        r.update(city_id=city_id, snap=snap, list_id=list_id, host_id=host_id, last_scraped=snap + timedelta(days=lag),
+                 room_type="Entire home/apt", listing_type="House", neighbourhood=f"N{list_id % 3}",
+                 scrape_source="city scrape",
                  first_review_date=snap - timedelta(days=400) if last_review else None,
                  last_review_date=last_review, host_since=D(2015, 1, 1),
                  price=100.0 + list_id % 50, capacity=2.0, bathrooms=1.0, bedrooms=1.0, beds=1.0,
@@ -37,26 +40,24 @@ def enrich(rows, reviews=None):
         for c in ["overall_rating", "accom_rating", "clean_rating", "checkin_rating", "com_rating",
                   "loc_rating", "value_rating"]:
             r[c] = rating
-        r.update({a: int(a == "AC1") for a in features.AMENITIES})
         out.append(r)
     return out
 
 
-def run(lf_rows, as_of=None):
+def run(lf_rows, as_of=None, params=None):
     con = duckdb.connect()
     df = pd.DataFrame(lf_rows)
     con.register("df", df)
-    dates = ["snap", "first_review_date", "last_review_date", "host_since"]
+    dates = ["snap", "last_scraped", "first_review_date", "last_review_date", "host_since"]
     casts = ", ".join(
         [f"{c}::DATE AS {c}" for c in dates]
         + [f"{c}::INTEGER AS {c}" for c in ["city_id"]]
         + [f"{c}::BIGINT AS {c}" for c in ["list_id", "host_id"]]
-        + [f"{c}::VARCHAR AS {c}" for c in ["room_type", "listing_type", "zip"]]
-        + [f"{c}::DOUBLE AS {c}" for c in features.NUMERIC_COLS]
-        + [f"{c}::INTEGER AS {c}" for c in features.AMENITIES])
+        + [f"{c}::VARCHAR AS {c}" for c in ["room_type", "listing_type", "neighbourhood", "scrape_source"]]
+        + [f"{c}::DOUBLE AS {c}" for c in features.NUMERIC_COLS])
     con.execute(f"CREATE TABLE lf AS SELECT {casts} FROM df")
     features.ls_view(con)
-    label.build(con, as_of=as_of)
+    label.build(con, params or TEST_PARAMS, as_of=as_of)
     features.build(con, as_of=as_of)
     return con
 
@@ -212,6 +213,7 @@ def test_allowlist_excludes_forbidden_and_exists(con):
     cols = set(con.execute("SELECT * FROM features LIMIT 0").df().columns)
     assert set(features.ALLOWLIST) <= cols
     label_cols = {"outcome", "in_c2", "in_c3", "host_changed", "label_status", "label_final_at", "c2", "c3"}
+    assert not cols & set(features.AMENITIES)                  # unreliable curated amenity codes
     assert not cols & label_cols
 
 
@@ -245,3 +247,16 @@ def test_scoring_frame_includes_rows_without_outcomes(con):
                                 AND (label_status = 'provisional' OR outcome = 'insufficient_followup')""",
                              [t]).fetchone()[0]
     assert unresolved > 0 and len(got) >= unresolved
+
+
+def test_durations_measured_from_decision_date():
+    con = run(enrich(scenario_a(), lag=6), params=LAG_PARAMS)
+    row = feats(con, 1, T, 1)
+    assert as_date(row.decision_date) == T + timedelta(6)
+    # last review 10 days before the snapshot date -> 16 days before collection finished
+    assert row.days_since_last_review == 16 and row.days_since_last_review >= 0
+
+
+def test_amenity_percentile_uses_only_its_snapshot(con):
+    pct = con.execute("SELECT MIN(amenity_count_pct), MAX(amenity_count_pct) FROM features").fetchone()
+    assert 0 <= pct[0] <= pct[1] <= 1

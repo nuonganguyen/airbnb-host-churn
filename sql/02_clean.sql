@@ -3,6 +3,9 @@
 --   price               commas stripped, so $1,000+ no longer truncates to 1, 2, ...
 --   host_response_rate  raw 'N/A' / empty -> NULL instead of 0
 --   host_accept_rate    same
+--   last_scraped, scrape_source, neighbourhood, id_imprecise: raw fields the curated
+--                       table never extracted (actual collection date; 'city scrape' /
+--                       'previous scrape'; neighbourhood_cleansed; scientific-notation id)
 --   host_since          carried forward from the host's earlier snapshots where the
 --                       source has 'NA' (every snapshot from Dec 2025 on); backward
 --                       only, so no future information leaks into a row
@@ -14,6 +17,10 @@ COPY (
                r.price AS raw_price,
                r.host_response_rate AS raw_resp,
                r.host_accept_rate AS raw_acc,
+               r.last_scraped,
+               r.source AS scrape_source,
+               r.neighbourhood,
+               COALESCE(r.id_imprecise, false) AS id_imprecise,
                r.KEY_FILE IS NOT NULL AS has_raw
         FROM 'data_local/listings_6city.parquet' e
         LEFT JOIN 'data_local/raw_fields/*.parquet' r
