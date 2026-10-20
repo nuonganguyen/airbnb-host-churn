@@ -2,13 +2,17 @@
 
     python src/label.py    # -> data_local/labels/*.parquet, reports/label_summary.md
 """
+import os
 from datetime import date
+from pathlib import Path
 
 import duckdb
 import pandas as pd
 
 from db import CITIES, LOCAL, PROJECT
 
+# tests/mutation_check.py points this at a temporary, deliberately broken copy
+SQL = Path(os.environ.get("LABEL_SQL", PROJECT / "sql" / "03_label.sql"))
 CLEAN = LOCAL / "listings_6city_clean.parquet"
 OUT = LOCAL / "labels"
 REPORT = PROJECT / "reports" / "label_summary.md"
@@ -28,13 +32,24 @@ PARAMS = {
 TABLES = ["schedule", "prediction_dates", "checkpoints", "labels"]
 
 
+def check_as_of(con, table, as_of):
+    """Refuse to run when the input holds snapshots dated after the as-of clock."""
+    if as_of is None:
+        return
+    latest = con.execute(f"SELECT MAX(snap) FROM {table}").fetchone()[0]
+    if latest is not None and latest > as_of:
+        raise ValueError(f"{table} has snapshots up to {latest}, after as_of={as_of}; "
+                         "filter the input to snap <= as_of first")
+
+
 def build(con, params=PARAMS, as_of=None):
     """Run sql/03_label.sql against an existing `ls` table. `as_of` is the date the
     data is current to; None means each city's latest snapshot."""
+    check_as_of(con, "ls", as_of)
     for name, value in params.items():
         con.execute(f"SET VARIABLE {name} = {value}")
     con.execute(f"SET VARIABLE as_of = DATE '{as_of}'" if as_of else "SET VARIABLE as_of = NULL::DATE")
-    con.execute((PROJECT / "sql" / "03_label.sql").read_text())
+    con.execute(SQL.read_text())
 
 
 def load_clean(con):
@@ -91,7 +106,10 @@ def summarize(con):
                        FROM labels GROUP BY ALL ORDER BY 1""")
     outcomes = q(f"""SELECT {era} AS era, label_status, CASE WHEN eligible_main THEN 'main' ELSE 'excluded' END AS population,
                             COUNT(*) AS listings,
-                            round(AVG((outcome = 'insufficient_followup')::INT), 3) AS insufficient_followup,
+                            COUNT(*) FILTER (WHERE outcome = 'absent_confirmed') AS absent_confirmed,
+                            COUNT(*) FILTER (WHERE outcome = 'observed') AS observed,
+                            COUNT(*) FILTER (WHERE outcome = 'insufficient_followup') AS insufficient_followup,
+                            COUNT(*) FILTER (WHERE outcome <> 'insufficient_followup') AS usable,
                             round(AVG((outcome = 'absent_confirmed')::INT) FILTER (WHERE outcome <> 'insufficient_followup'), 3)
                                 AS absent_confirmed_rate
                      FROM labels GROUP BY ALL ORDER BY 1, 2, 3""")
@@ -119,8 +137,9 @@ def summarize(con):
         "## Actual checkpoint offsets (days after t)", "", md(offsets), "",
         "## Population rules (counts of listing-dates)", "", md(population), "",
         "## Outcomes", "",
-        "`absent_confirmed_rate` is among listing-dates with usable follow-up. Provisional labels can still "
-        "change as data arrives.", "", md(outcomes), "",
+        "`absent_confirmed_rate` = absent_confirmed / usable, where usable excludes insufficient_followup. "
+        "Training rows are final, usable and eligible_main (see `src/features.py:training_frame`). "
+        "Provisional labels can still change as data arrives.", "", md(outcomes), "",
         "## Markets with final outcomes per quarter (2023+, for the shared holdout block)", "",
         "A market without a prediction date in a quarter is not listed.", "",
         md(quarters), "",

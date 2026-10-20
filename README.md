@@ -39,12 +39,15 @@ python src/validate.py                    # reports/data_validation.md (extract)
 python src/validate.py listings_6city_clean.parquet   # reports/data_validation_clean.md
 python src/fingerprint.py --check         # confirm source untouched
 
-python -m pytest tests -q                 # label acceptance tests (docs/label_spec.md)
+python -m pytest tests -q                 # label + feature acceptance tests
+python tests/mutation_check.py            # optional: suite must catch 21 deliberate SQL breaks (~4 min)
 python src/label.py                       # labels -> data_local/labels/, reports/label_summary.md
+python src/features.py                    # features -> data_local/features.parquet, reports/feature_summary.md
 ```
 
 The outcome definition, population rules and evaluation timing are in
-[docs/label_spec.md](docs/label_spec.md).
+[docs/label_spec.md](docs/label_spec.md); predictors and the information rule are in
+[docs/feature_spec.md](docs/feature_spec.md).
 
 ## Data quality fixes
 

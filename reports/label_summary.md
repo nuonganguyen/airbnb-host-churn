@@ -77,16 +77,16 @@ Built 2026-10-20 by `src/label.py` from `listings_6city_clean.parquet` per `docs
 
 ## Outcomes
 
-`absent_confirmed_rate` is among listing-dates with usable follow-up. Provisional labels can still change as data arrives.
+`absent_confirmed_rate` = absent_confirmed / usable, where usable excludes insufficient_followup. Training rows are final, usable and eligible_main (see `src/features.py:training_frame`). Provisional labels can still change as data arrives.
 
-| era     | label_status   | population   |   listings |   insufficient_followup |   absent_confirmed_rate |
-|:--------|:---------------|:-------------|-----------:|------------------------:|------------------------:|
-| 2015-22 | final          | excluded     |     224655 |                   0.079 |                   0.219 |
-| 2015-22 | final          | main         |     944153 |                   0.096 |                   0.211 |
-| 2023+   | final          | excluded     |     105315 |                   0.135 |                   0.196 |
-| 2023+   | final          | main         |     445489 |                   0.107 |                   0.183 |
-| 2023+   | provisional    | excluded     |      30148 |                   0.84  |                   0.196 |
-| 2023+   | provisional    | main         |     115571 |                   0.863 |                   0.142 |
+| era     | label_status   | population   |   listings |   absent_confirmed |   observed |   insufficient_followup |   usable |   absent_confirmed_rate |
+|:--------|:---------------|:-------------|-----------:|-------------------:|-----------:|------------------------:|---------:|------------------------:|
+| 2015-22 | final          | excluded     |     224655 |              45260 |     161650 |                   17745 |   206910 |                   0.219 |
+| 2015-22 | final          | main         |     944153 |             179954 |     673696 |                   90503 |   853650 |                   0.211 |
+| 2023+   | final          | excluded     |     105315 |              17828 |      73270 |                   14217 |    91098 |                   0.196 |
+| 2023+   | final          | main         |     445489 |              72897 |     324845 |                   47747 |   397742 |                   0.183 |
+| 2023+   | provisional    | excluded     |      30148 |                945 |       3873 |                   25330 |     4818 |                   0.196 |
+| 2023+   | provisional    | main         |     115571 |               2237 |      13551 |                   99783 |    15788 |                   0.142 |
 
 ## Markets with final outcomes per quarter (2023+, for the shared holdout block)
 
@@ -104,10 +104,10 @@ A market without a prediction date in a quarter is not listed.
 | 2024-Q4   |                             5 | Austin                                                     |
 | 2025-Q1   |                             4 | Nashville, Austin                                          |
 | 2025-Q2   |                             3 | Nashville, Seattle, Denver                                 |
-| 2025-Q3   |                             0 | Seattle, Denver, San Diego, New Orleans, Nashville         |
-| 2025-Q4   |                             0 | San Diego, Denver, Seattle, New Orleans                    |
-| 2026-Q1   |                             0 | New Orleans, San Diego                                     |
-| 2026-Q2   |                             0 | Nashville, Denver, San Diego, New Orleans, Seattle, Austin |
+| 2025-Q3   |                             0 | Seattle, San Diego, Denver, New Orleans, Nashville         |
+| 2025-Q4   |                             0 | Seattle, Denver, San Diego, New Orleans                    |
+| 2026-Q1   |                             0 | San Diego, New Orleans                                     |
+| 2026-Q2   |                             0 | San Diego, Nashville, Denver, New Orleans, Seattle, Austin |
 
 ## Reactivation after confirmed absence
 
