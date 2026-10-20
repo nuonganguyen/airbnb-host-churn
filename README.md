@@ -63,3 +63,13 @@ The outcome definition, population rules and evaluation timing are in
 
 Not fixable: from Dec 2025 the source has no host response time, response rate or
 acceptance rate, so those stay NULL. Leave them out of features, or add a missing indicator.
+
+## Backtest
+
+```bash
+python src/backtest.py                 # development folds 2017-Q3..2023-Q3 -> reports/backtest_development.md
+python src/backtest.py --report-only   # rebuild the report from saved fold results
+python src/backtest.py --holdout       # shared holdout block 2023-Q4..2024-Q3, run once at the end
+```
+
+Known source discontinuities and their proposed handling: [docs/source_breaks.md](docs/source_breaks.md).
