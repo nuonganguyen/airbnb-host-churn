@@ -1,6 +1,25 @@
 # Supply at Risk: Predicting Airbnb Host Churn
 
-_Headline chart and numbers go here once results are in._
+**Question:** each quarter, which 500 hosts should a retention team contact to protect listings that are likely to
+disappear? Built on public Inside Airbnb snapshots (6 US markets, 2015–2026) with read-only access to the source.
+
+**Holdout results** (shared block 2023-Q4 to 2024-Q3, run once after the analysis was frozen; primary `retain` variant):
+
+| Contact 500 hosts per quarter, ranked by | Hosts with ≥ 1 listing that disappears | Quarters better than the rule |
+|---|---|---|
+| Best simple rule (low presence over the past year) | 0.33 | — |
+| LightGBM risk (riskiest listing) | **0.51** (+0.18) | 4/4 |
+| LightGBM risk × value (Σ p·V) | **0.61** | 4/4 vs value only |
+| Value only (Σ V) | 0.52 | — |
+| Random | 0.17 | — |
+
+- **Value:** ranking by risk × value captures **+11%** more estimated disappearing booking value than ranking by value alone (4/4 quarters).
+- **Where the value is:** hosts with 21+ listings hold 56–66% of the captured value.
+- **Sensitivity variant:** the `exclude` variant gives the same conclusions (risk vs rule +0.23, 4/4 quarters).
+- **What it doesn't show:** the scores are predictive associations. Whether outreach prevents disappearances needs the
+  host-randomized experiment in [docs/business_spec.md](docs/business_spec.md); about 1,500 hosts per arm detect a 10% reduction.
+
+Reports: `reports/backtest_development.md`, `reports/backtest_holdout.md`, `reports/business_development.md`, `reports/business_holdout.md`.
 
 ## Project layout
 
