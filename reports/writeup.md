@@ -77,6 +77,8 @@ The outcome is a **proxy**. A missing listing id doesn't necessarily mean a host
 
 About **90 more of every 500 contacted hosts** go on to have a listing disappear than with the best rule, in both periods. The holdout
 precision is lower than in development because the base rate is lower (17% vs 22%); the lift over the rule is unchanged.
+**Logistic regression nearly matches LightGBM on the holdout** (0.508 vs 0.511, and ahead in 2024-Q3), after trailing by 0.08 in
+development. Most of the gain comes from the features and the target design, not from the more complex model.
 
 **Value.** Each listing gets a transparent value proxy, *V*: 12 months of booking value at its asking price, with bookings estimated from reviews,
 under three scenarios for the share of stays that leave a review. It isn't realized revenue. Ranking hosts by expected exposure **Σ p·V** reaches
