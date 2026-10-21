@@ -57,11 +57,16 @@ The backtest shows **who is likely to disappear**, not whether contact changes i
   later (`label_final_at`). **Prevention rate** = 1 − (treatment rate ÷ control rate).
 - **Secondary outcomes:** value-weighted retained *V*, listings retained, and contact cost. **Guardrails:** host complaints and opt-outs.
 - **Analysis:** intention to treat. Pre-register the outcome, strata and minimum detectable effect.
-- **Size:** with a control hit rate of ~0.61 among top-ranked hosts, a 10% relative reduction needs about **1,045 hosts per arm** (two-sided α = 0.05,
-  power 0.8). That's about 3 quarters at 500 + 500 per quarter; a 5% reduction needs ~4,100 per arm. Clustering across
-  repeated quarters isn't included in these numbers.
+- **Size (post-holdout audit, `reports/post_holdout_audit.md`):** in the proposed recruitment population (top 1,000 by Σ p·V), the holdout
+  event rate is 0.475. A 10% relative reduction then needs about **1,722 independent hosts per arm** (two-sided α = 0.05, power 0.8),
+  about 4 recruitment quarters of 500 new hosts per arm, plus ~9–10 months of follow-up. A 5% reduction needs ~6,900 per arm. Hosts recur
+  across quarters and are randomized once. The frozen business reports size it on the top 500 by risk instead (0.61 development / 0.51 holdout),
+  which is the wrong population.
 
 ## 5. Limitations
-- **Calibration:** *p<sub>i</sub>* is calibrated only loosely (mean absolute gap ~0.05 per quarter), which affects Σ*p*·*V* rankings more than max-*p* rankings.
+- **Calibration:** in development the mean absolute gap between average predicted probability and observed frequency is ~5 pp per quarter; on the
+  holdout it is **10.5 pp** (worst 13.9 pp, always overpredicting). This inflates Σ*p*·*V* exposure and affects Σ*p*·*V* rankings more than max-*p* rankings.
+- **Contact timing:** host aggregation pools the whole quarter across markets but contacts on the earliest decision date, so a small share of contacted
+  hosts (12–24 of 500 per holdout quarter) were ranked partly on later observations. Results are a pooled quarterly ranking benchmark.
 - **Portfolio share:** captured value is dominated by hosts with many listings (59–83% from 21+ listings in development). Their responsiveness to outreach may differ.
 - **What "disappearance" means:** the listing id is gone from the source (see `docs/label_spec.md` and `docs/source_breaks.md`), not necessarily the accommodation.

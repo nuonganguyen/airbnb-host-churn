@@ -8,18 +8,23 @@ disappear? Built on public Inside Airbnb snapshots (6 US markets, 2015–2026) w
 | Contact 500 hosts per quarter, ranked by | Hosts with ≥ 1 listing that disappears | Quarters better than the rule |
 |---|---|---|
 | Best simple rule (low presence over the past year) | 0.33 | — |
-| LightGBM risk (riskiest listing) | **0.51** (+0.18) | 4/4 |
+| LightGBM risk (riskiest listing) | **0.51** (+18.4 pp) | 4/4 |
+| Logistic regression | 0.51 | 4/4 |
 | LightGBM risk × value (Σ p·V) | **0.61** | 4/4 vs value only |
 | Value only (Σ V) | 0.52 | — |
 | Random | 0.17 | — |
 
 - **Value:** ranking by risk × value captures **+11%** more estimated disappearing booking value than ranking by value alone (4/4 quarters).
 - **Where the value is:** hosts with 21+ listings hold 56–66% of the captured value.
+- **Model complexity:** both trained models beat the rules; LightGBM adds little host precision@500 over logistic regression on the holdout
+  (it stays ahead at precision@100: 0.64 vs 0.49).
 - **Sensitivity variant:** the `exclude` variant gives the same conclusions (risk vs rule +0.23, 4/4 quarters).
+- **Scope:** a pooled quarterly ranking benchmark, not a deployable contact policy; probabilities overpredict on the holdout by 10.5 pp
+  on average ([post-holdout audit](reports/post_holdout_audit.md)).
 - **What it doesn't show:** the scores are predictive associations. Whether outreach prevents disappearances needs the
-  host-randomized experiment in [docs/business_spec.md](docs/business_spec.md); about 1,500 hosts per arm detect a 10% reduction.
+  host-randomized experiment in [docs/business_spec.md](docs/business_spec.md); about 1,722 independent hosts per arm detect a 10% reduction.
 
-Reports: `reports/backtest_development.md`, `reports/backtest_holdout.md`, `reports/business_development.md`, `reports/business_holdout.md`.
+Write-up: [reports/writeup.md](reports/writeup.md). Reports: `reports/backtest_development.md`, `reports/backtest_holdout.md`, `reports/business_development.md`, `reports/business_holdout.md`.
 
 ## Project layout
 

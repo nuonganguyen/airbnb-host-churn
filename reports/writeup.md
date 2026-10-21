@@ -42,7 +42,8 @@ biases the label by era (5% vs 10% churn, against 21% vs 18% under the checkpoin
 Three design choices do the heavy lifting:
 - **Unreliable snapshots:** a snapshot whose listing count drops below 75% of its trailing median is flagged. It's then classified as a
   **partial scrape** if most of the missing listings return at the next *unflagged* snapshot, and as a suspected contraction otherwise.
-  The rule uses no future snapshots, so it could have run at the time.
+  Resolving a flag does use a later snapshot, but only once that snapshot is available. Until then the flagged snapshot is unusable,
+  and every label it could affect stays provisional.
 - **Finality:** a label is final only once every snapshot that could still change the checkpoints has arrived and been classified.
   A forward-in-time test feeds in data 15 days at a time and checks that final labels never change.
 - **Population:** active listings (a review in the last 365 days, or first observed within 180 days with enough prior coverage),
@@ -60,6 +61,9 @@ The outcome is a **proxy**. A missing listing id doesn't necessarily mean a host
   the next quarter. Models: four simple rules, logistic regression, and LightGBM.
 - **Host level:** listings are scored, and hosts are ranked and deduplicated by the host at *t*. A **hit** is a contacted host with ≥ 1
   listing that's later absent.
+- **Contact list:** a **pooled quarterly ranking benchmark**. Each host is ranked on all of its eligible listings that quarter, across markets,
+  so up to 24 of 500 contacted hosts per holdout quarter were ranked partly on listings observed after their assigned contact date
+  (`reports/post_holdout_audit.md`). A deployable policy needs a shared information cutoff or a sequential selection, and hasn't been evaluated.
 - **Holdout:** a shared block, 2023-Q4 to 2024-Q3, run **once**, after all settings were frozen with file hashes
   (`config/analysis_freeze.json`). The code refuses to run it again or to run it with changed files.
 - **Checks:** 91 tests, and a mutation runner showing the suite catches 24 deliberate breaks in the SQL.
@@ -73,12 +77,16 @@ The outcome is a **proxy**. A missing listing id doesn't necessarily mean a host
 | Random contact | 0.22 | 0.17 |
 | Best simple rule (low presence over the past year) | 0.43 | 0.33 |
 | **LightGBM risk ranking** | **0.61** | **0.51** |
-| Lift over the rule | +0.18 (23/23 quarters; block-bootstrap 95% CI 0.14–0.21) | **+0.18 (4/4 quarters: 0.21, 0.18, 0.19, 0.16)** |
+| Lift over the rule | +17.9 pp (23/23 quarters; block-bootstrap 95% CI 13.9–20.8 pp) | **+18.4 pp on average, positive in all 4 quarters (15.6 to 20.8 pp)** |
+| Logistic regression | 0.52 | 0.51 |
 
-About **90 more of every 500 contacted hosts** go on to have a listing disappear than with the best rule, in both periods. The holdout
-precision is lower than in development because the base rate is lower (17% vs 22%); the lift over the rule is unchanged.
-**Logistic regression nearly matches LightGBM on the holdout** (0.508 vs 0.511, and ahead in 2024-Q3), after trailing by 0.08 in
-development. Most of the gain comes from the features and the target design, not from the more complex model.
+About **90 more of every 500 contacted hosts** go on to have a listing disappear than with the best rule, in both periods. Holdout
+precision is lower than in development, which **coincides with** a lower base rate (17% vs 22%). That hasn't been shown to fully explain
+the decline.
+
+**Both trained models outperform the simple rules. LightGBM provides little additional host precision@500 on this holdout**
+(0.511 vs 0.508 for logistic regression, and behind it in 2024-Q3), after leading by 0.08 in development. Its advantage remains visible
+at a tighter budget: host precision@100 is 0.64 vs 0.49.
 
 **Value.** Each listing gets a transparent value proxy, *V*: 12 months of booking value at its asking price, with bookings estimated from reviews,
 under three scenarios for the share of stays that leave a review. It isn't realized revenue. Ranking hosts by expected exposure **Σ p·V** reaches
@@ -89,9 +97,13 @@ quarters. Risk adds a real but modest gain over "prioritize the biggest accounts
 
 Net benefit per quarter = *prevention rate × take rate × captured value − cost per contact × 500*. Under risk × value targeting on
 the holdout, outreach breaks even at **$370 per contact** (prevents 5% of disappearances, 10% take rate) up to **$2,200** (20%, 15%).
-The prevention rate is unknown. The proposed test is a **host-randomized experiment**: the top 1,000 hosts per quarter split 1:1,
-stratified by market and portfolio size, with the same outcome label. Detecting a 10% relative reduction needs about **1,000–1,500 hosts per arm**,
-roughly three quarters at 500 + 500 (`docs/business_spec.md`).
+These use probability-weighted value, which is sensitive to the calibration error below. The prevention rate is unknown.
+
+The proposed test is a **host-randomized experiment**: the top 1,000 hosts per quarter by Σ p·V, split 1:1, stratified by market and
+portfolio size, with the same outcome label. In that population the holdout event rate is **47.5%**. Detecting a 10% relative reduction needs
+about **1,722 independent hosts per arm**, so about **four recruitment quarters** of 500 new hosts per arm, plus ~9–10 months of follow-up.
+Hosts recur across quarters and can be randomized only once. (The frozen business report sized this on the top 500 by risk; the corrected
+figure is from the post-holdout audit.)
 
 ## 7. What challenged the project
 
@@ -110,7 +122,10 @@ retroactive changes before its effective date). Both were frozen and reported. T
 ## 8. Limitations and next steps
 - **The target is a listing id, not an accommodation.** Linking re-created listings under new ids is a separate study, which needs one-to-one
   matches and a reviewed estimate of false links.
-- **Value and benefit are scenario estimates.** *V* is a proxy, calibration is loose (±0.05 per quarter), and no revenue has been saved yet.
+- **Value and benefit are scenario estimates.** *V* is a proxy, and no revenue has been saved yet.
+- **Probabilities are poorly calibrated on the holdout.** LightGBM's mean absolute gap between average predicted probability and observed
+  frequency is **10.5 percentage points**, worst **13.9**, always overpredicting. That inflates Σ p·V exposure; the rank-based precision results don't depend on it.
+- **The contact policy is a benchmark, not a deployable process** (§4).
 - **Scores are predictive associations.** Feature importance doesn't say why hosts leave or what would keep them.
 
 ## Reproducing
