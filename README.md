@@ -26,6 +26,19 @@ disappear? Built on public Inside Airbnb snapshots (6 US markets, 2015–2026) w
 
 Write-up: [reports/writeup.md](reports/writeup.md). Reports: `reports/backtest_development.md`, `reports/backtest_holdout.md`, `reports/business_development.md`, `reports/business_holdout.md`.
 
+## Data (not included)
+
+This repository holds code, specifications and aggregate reports only. No listing-level data is committed.
+The source is [Inside Airbnb](https://insideairbnb.com/get-the-data/) (CC BY 4.0): listings snapshots for Austin, Denver,
+Nashville, New Orleans, San Diego and Seattle, 2015–2026, loaded into a SQLite database (`ia.db`) by a separate R pipeline.
+To run the code, point `SOURCE_DIR` in `src/db.py` at a folder containing `ia.db` and `raw/<City>/*_listings.csv`.
+(`src/db.py` is part of the frozen analysis, so `src/freeze.py --check` will report the change.) Everything the pipeline
+writes goes to `data_local/`, which is git-ignored.
+
+## License
+
+Code: MIT (see `LICENSE`). Data: not redistributed; Inside Airbnb data is CC BY 4.0.
+
 ## Project layout
 
 ```

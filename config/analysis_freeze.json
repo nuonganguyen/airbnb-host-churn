@@ -122,5 +122,5 @@
     "src/run_sql.py": "ab5fe784bb10076d6c60293175fe138a1fe3e11455f2bd865578463d2b813363",
     "src/validate.py": "ef9419018c277ebdb3faa7001f0636306e13fbc29c01a3c71214c694fe8f941c"
   },
-  "git_commit_at_freeze": "0f1d7ded40844283341b6bd8385cbd1383df41ce"
+  "git_commit_at_freeze": "3af26b86333410edead4dde586ed0d751969b049"
 }

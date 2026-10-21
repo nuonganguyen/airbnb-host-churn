@@ -135,4 +135,4 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 scripts/reproduce.sh          # extract -> clean -> validate -> labels -> features -> tests -> backtest -> business
 ```
 
-The holdout is run once and guarded. The results here come from commit `2c3e71f`.
+The holdout is run once and guarded. The holdout results come from commit `c09092f` (hashes as rewritten on 2026-10-21, when commit emails were changed to the GitHub noreply address).
