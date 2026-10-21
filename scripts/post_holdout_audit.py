@@ -64,7 +64,8 @@ def main():
         "## 2. Calibration on the holdout", "",
         "Mean predicted probability minus observed rate, in percentage points, per holdout quarter:", "", md(cal), "",
         f"LightGBM mean absolute gap: **{cal['lgbm'].abs().mean():.1f} pp**, worst **{cal['lgbm'].abs().max():.1f} pp**. "
-        "Probability-weighted value (Σ p·V) is affected; the rank-based precision metrics are not.", "",
+        "Hosts are selected by Σ p·V; benefit scenarios use the value of observed confirmed absences among selected hosts. "
+        "Reported precision directly evaluates the frozen selections. Recalibration could change the risk × value ranking.", "",
         "## 3. Experiment sizing on the proposed recruitment population", "",
         "The frozen business report sized the experiment from the top 500 hosts by risk (event rate 0.512). The proposal "
         "recruits the top 1,000 by Σ p·V, whose holdout event rate is lower:", "",

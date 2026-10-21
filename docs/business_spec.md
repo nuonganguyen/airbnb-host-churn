@@ -65,7 +65,7 @@ The backtest shows **who is likely to disappear**, not whether contact changes i
 
 ## 5. Limitations
 - **Calibration:** in development the mean absolute gap between average predicted probability and observed frequency is ~5 pp per quarter; on the
-  holdout it is **10.5 pp** (worst 13.9 pp, always overpredicting). This inflates Σ*p*·*V* exposure and affects Σ*p*·*V* rankings more than max-*p* rankings.
+  holdout it is **10.5 pp** (worst 13.9 pp, always overpredicting). Hosts are selected by Σ*p*·*V*, but benefit scenarios use the value of observed confirmed absences among selected hosts (holdout: $37.1M per quarter vs $57.6M predicted exposure). Reported precision directly evaluates the frozen selections; recalibration could change the risk × value ranking.
 - **Contact timing:** host aggregation pools the whole quarter across markets but contacts on the earliest decision date, so a small share of contacted
   hosts (12–24 of 500 per holdout quarter) were ranked partly on later observations. Results are a pooled quarterly ranking benchmark.
 - **Portfolio share:** captured value is dominated by hosts with many listings (59–83% from 21+ listings in development). Their responsiveness to outreach may differ.

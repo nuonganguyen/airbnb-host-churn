@@ -1,6 +1,6 @@
 # Prioritizing Hosts at Risk of Losing Listings
 
-*A rolling-backtest evaluation on six years of public Inside Airbnb snapshots*
+*A rolling-backtest evaluation on a decade of public Inside Airbnb snapshots (2015–2026)*
 
 > I built and evaluated a system that prioritizes hosts for investigation based on the risk that their listings
 > disappear, while accounting for unreliable snapshots and information availability.
@@ -97,7 +97,7 @@ quarters. Risk adds a real but modest gain over "prioritize the biggest accounts
 
 Net benefit per quarter = *prevention rate × take rate × captured value − cost per contact × 500*. Under risk × value targeting on
 the holdout, outreach breaks even at **$370 per contact** (prevents 5% of disappearances, 10% take rate) up to **$2,200** (20%, 15%).
-These use probability-weighted value, which is sensitive to the calibration error below. The prevention rate is unknown.
+Hosts are selected using probability-weighted value. Benefit scenarios use the value proxy associated with observed confirmed absences among selected hosts (on average $37.1M per quarter, against $57.6M of predicted exposure for the same hosts). Calibration errors may change which hosts are selected. The prevention rate is unknown.
 
 The proposed test is a **host-randomized experiment**: the top 1,000 hosts per quarter by Σ p·V, split 1:1, stratified by market and
 portfolio size, with the same outcome label. In that population the holdout event rate is **47.5%**. Detecting a 10% relative reduction needs
@@ -124,7 +124,7 @@ retroactive changes before its effective date). Both were frozen and reported. T
   matches and a reviewed estimate of false links.
 - **Value and benefit are scenario estimates.** *V* is a proxy, and no revenue has been saved yet.
 - **Probabilities are poorly calibrated on the holdout.** LightGBM's mean absolute gap between average predicted probability and observed
-  frequency is **10.5 percentage points**, worst **13.9**, always overpredicting. That inflates Σ p·V exposure; the rank-based precision results don't depend on it.
+  frequency is **10.5 percentage points**, worst **13.9**, always overpredicting. Reported precision directly evaluates the frozen selections. Recalibration could change the risk × value ranking.
 - **The contact policy is a benchmark, not a deployable process** (§4).
 - **Scores are predictive associations.** Feature importance doesn't say why hosts leave or what would keep them.
 

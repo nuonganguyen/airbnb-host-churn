@@ -39,7 +39,7 @@ Mean predicted probability minus observed rate, in percentage points, per holdou
 | 2024Q2    |   13.9 | 22.7 |
 | 2024Q3    |    8.9 | 19.2 |
 
-LightGBM mean absolute gap: **10.5 pp**, worst **13.9 pp**. Probability-weighted value (Σ p·V) is affected; the rank-based precision metrics are not.
+LightGBM mean absolute gap: **10.5 pp**, worst **13.9 pp**. Hosts are selected by Σ p·V; benefit scenarios use the value of observed confirmed absences among selected hosts. Reported precision directly evaluates the frozen selections. Recalibration could change the risk × value ranking.
 
 ## 3. Experiment sizing on the proposed recruitment population
 
