@@ -9,4 +9,5 @@ matplotlib
 streamlit
 jupyterlab
 tabulate
+xlsxwriter
 pytest

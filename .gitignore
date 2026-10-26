@@ -4,6 +4,10 @@ data_local/
 *.parquet
 *.duckdb
 *.duckdb.wal
+# Power BI: a .pbix embeds the data; a .pbip project keeps its data cache in .pbi/cache.abf
+*.pbix
+*.abf
+**/.pbi/localSettings.json
 
 .venv/
 __pycache__/

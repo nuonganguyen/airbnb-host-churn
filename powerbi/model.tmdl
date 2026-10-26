@@ -1,0 +1,80 @@
+createOrReplace
+
+	relationship 918b5b73-6489-5e33-928c-02f988c9530e
+		fromColumn: fact_precision.quarter
+		toColumn: dim_quarter.quarter
+
+	relationship c5fe4845-50dd-58ab-a40b-6c6175fc05b0
+		fromColumn: fact_model_quality.quarter
+		toColumn: dim_quarter.quarter
+
+	relationship d138ba1a-362e-516b-82b7-28c74936bc71
+		fromColumn: fact_business.quarter
+		toColumn: dim_quarter.quarter
+
+	relationship dba3e77d-1541-58ca-b2d1-151ae3045966
+		fromColumn: fact_folds.quarter
+		toColumn: dim_quarter.quarter
+
+	relationship b8a9551e-c06e-5a3b-a835-2f694532e334
+		fromColumn: fact_feature_gain.quarter
+		toColumn: dim_quarter.quarter
+
+	relationship 0c587985-a6ea-5ecf-b56d-e3941866c4d1
+		fromColumn: fact_precision.variant
+		toColumn: dim_variant.variant
+
+	relationship ece54a38-3e5e-5c17-8d72-2a13397490db
+		fromColumn: fact_model_quality.variant
+		toColumn: dim_variant.variant
+
+	relationship 5f69eff8-b643-50de-bddf-59cf5957b952
+		fromColumn: fact_business.variant
+		toColumn: dim_variant.variant
+
+	relationship 71f0dc41-6a67-51e9-b0bd-234b2070e3f4
+		fromColumn: fact_folds.variant
+		toColumn: dim_variant.variant
+
+	relationship 7d2df785-9b29-53c9-b641-06e765fe5f7e
+		fromColumn: fact_precision.k
+		toColumn: dim_k.k
+
+	relationship a8c50c06-a1af-54d0-9c43-3b6df20931d7
+		fromColumn: fact_business.k
+		toColumn: dim_k.k
+
+	ref table fact_precision
+
+		measure 'Host precision' = AVERAGE(fact_precision[host_precision])
+			formatString: 0.0%
+
+		measure 'LightGBM precision' = CALCULATE(AVERAGE(fact_precision[host_precision]), fact_precision[model] = "lgbm")
+			formatString: 0.0%
+
+		measure 'Best rule precision' = CALCULATE(AVERAGE(fact_precision[host_precision]), fact_precision[model] = "rule:low_presence_365")
+			formatString: 0.0%
+
+		measure 'Lift over best rule' = CALCULATE(AVERAGE(fact_precision[host_precision]), fact_precision[model] = "lgbm") - CALCULATE(AVERAGE(fact_precision[host_precision]), fact_precision[model] = "rule:low_presence_365")
+			formatString: 0.0%
+
+		measure 'Extra at-risk hosts' = (CALCULATE(AVERAGE(fact_precision[host_precision]), fact_precision[model] = "lgbm") - CALCULATE(AVERAGE(fact_precision[host_precision]), fact_precision[model] = "rule:low_presence_365")) * SELECTEDVALUE(dim_k[k])
+			formatString: 0
+
+	ref table fact_business
+
+		measure 'Strategy precision' = AVERAGE(fact_business[precision])
+			formatString: 0.0%
+
+		measure 'Captured value share' = AVERAGE(fact_business[captured_share])
+			formatString: 0.0%
+
+	ref table fact_model_quality
+
+		measure 'LightGBM overprediction' = CALCULATE(AVERAGE(fact_model_quality[mean_pred]) - AVERAGE(fact_model_quality[base_rate]), fact_model_quality[model] = "lgbm")
+			formatString: 0.0%
+
+	ref table fact_feature_gain
+
+		measure 'Gain share' = AVERAGE(fact_feature_gain[gain_share])
+			formatString: 0.0%
