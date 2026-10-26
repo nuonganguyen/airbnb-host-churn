@@ -155,7 +155,7 @@ The analysis does not establish why hosts leave, whether outreach prevents depar
 ## 7. Repository structure
 
 ```
-host-churn/
+airbnb-host-churn/
 ├── sql/       01_extract → 02_clean → 03_label → 04_features
 ├── src/       data preparation, validation, labels, features, models and evaluation
 ├── scripts/   reproduction, figures, post-holdout audit and Power BI export
